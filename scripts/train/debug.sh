@@ -26,8 +26,8 @@ fi
 # Train over a single node, 8 A100-80GB GPUs.
 python3 -m verl.trainer.main_ppo \
     algorithm.adv_estimator=grpo \
-    data.train_files=$HOME/rllm/data/math_train.parquet \
-    data.val_files=$HOME/rllm/data/math.parquet \
+    data.train_files=$HOME/rllm/data/datasets/gsm8k/train_verl.parquet \
+    data.val_files=$HOME/rllm/data/datasets/gsm8k/test_verl.parquet \
     data.train_batch_size=8 \
     data.val_batch_size=512 \
     data.max_prompt_length=1024 \
@@ -61,7 +61,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.logger=['console','wandb'] \
     trainer.project_name='deepscaler' \
     trainer.experiment_name='deepscaler-debug' \
-    +trainer.val_before_train=False \
+    trainer.val_before_train=False \
     trainer.n_gpus_per_node=1 \
     trainer.nnodes=1 \
     trainer.save_freq=5 \
