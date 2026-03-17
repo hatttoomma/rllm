@@ -47,12 +47,12 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=False \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.name=vllm \
-    +actor_rollout_ref.rollout.async_engine=True \
+    actor_rollout_ref.rollout.mode=async \
     actor_rollout_ref.rollout.temperature=0.6 \
-    +actor_rollout_ref.rollout.val_temperature=0.6 \
+    actor_rollout_ref.rollout.val_kwargs.temperature=0.6 \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.5 \
     actor_rollout_ref.rollout.n=2 \
-    +actor_rollout_ref.rollout.n_val=1 \
+    actor_rollout_ref.rollout.val_kwargs.n=1 \
     actor_rollout_ref.rollout.enforce_eager=False \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     algorithm.kl_ctrl.kl_coef=0.001 \
