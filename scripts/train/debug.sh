@@ -26,8 +26,8 @@ fi
 # Train over a single node, 8 A100-80GB GPUs.
 python3 -m verl.trainer.main_ppo \
     algorithm.adv_estimator=grpo \
-    data.train_files=$HOME/rllm/rllm/data/datasets/gsm8k/train_verl.parquet \
-    data.val_files=$HOME/rllm/rllm/data/datasets/gsm8k/test_verl.parquet \
+    data.train_files=$HOME/rllm/rllm/data/datasets/gsm8k/train.parquet \
+    data.val_files=$HOME/rllm/rllm/data/datasets/gsm8k/test.parquet \
     data.train_batch_size=8 \
     data.val_batch_size=512 \
     data.max_prompt_length=1024 \
