@@ -66,6 +66,6 @@ python3 -m verl.trainer.main_ppo \
     trainer.nnodes=1 \
     trainer.save_freq=5 \
     trainer.test_freq=5 \
-    trainer.remove_previous_ckpt_in_save=True \
+    +trainer.remove_previous_ckpt_in_save=True \
     trainer.default_hdfs_dir=null \
     trainer.total_epochs=30 "${@:1}"
