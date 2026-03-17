@@ -32,6 +32,7 @@ python3 -m verl.trainer.main_ppo \
     data.val_batch_size=512 \
     data.max_prompt_length=1024 \
     data.max_response_length=2048 \
+    data.return_raw_chat=True \
     actor_rollout_ref.model.path=$MODEL_PATH  \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.model.use_remove_padding=True \
@@ -60,7 +61,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.logger=['console','wandb'] \
     trainer.project_name='deepscaler' \
     trainer.experiment_name='deepscaler-debug' \
-    trainer.val_before_train=False \
+    trainer.val_before_train=True \
     trainer.n_gpus_per_node=1 \
     trainer.nnodes=1 \
     trainer.save_freq=5 \
