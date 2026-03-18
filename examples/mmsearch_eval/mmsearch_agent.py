@@ -88,8 +88,6 @@ class MMSearchAgent:
         if not matches:
             answer = ""
         answer = matches[-1].strip()
-        if not answer:
-            raise ValueError("Boxed answer is empty.")
         return answer
 
     async def run(self, query: str, query_image: Image.Image, uid: str, **kwargs) -> dict:
