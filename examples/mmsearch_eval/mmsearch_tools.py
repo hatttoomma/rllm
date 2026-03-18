@@ -16,7 +16,7 @@ class SerperSearchTool(Tool):
         self._json = {
             "type": "function",
             "function": {
-                "name": "Search",
+                "name": "search",
                 "description": "Search the web using Serper and return concise snippets.",
                 "parameters": {
                     "type": "object",
@@ -30,7 +30,7 @@ class SerperSearchTool(Tool):
                 },
             },
         }
-        super().__init__(name="Search", description="Search the web using Serper.")
+        super().__init__(name="search", description="Search the web using Serper.")
 
     async def async_forward(self, query: str, **kwargs) -> ToolOutput:
         api_key = os.getenv("SERPER_API_KEY")
@@ -70,5 +70,5 @@ class SerperSearchTool(Tool):
 
 def get_mmsearch_tools() -> dict[str, Tool]:
     """Return tools used by MMSearch agent."""
-    return {"Search": SerperSearchTool()}
+    return {"search": SerperSearchTool()}
 

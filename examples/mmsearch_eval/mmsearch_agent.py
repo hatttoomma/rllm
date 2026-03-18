@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 from io import BytesIO
 
 from PIL import Image
@@ -16,8 +17,14 @@ def _pil_to_data_url(image: Image.Image) -> str:
     return f"data:image/jpeg;base64,{b64}"
 
 SYSTEM_PROMPT = """
-You can use the Search tool to look up web information when needed.
-Put your final answer in the format of \boxed{answer}.
+You can use a text search tool when needed.
+If you need to call the tool, you MUST use exactly this format:
+<tool_call>{"name":"search","args":{"query":"your search text"}}</tool_call>
+
+Rules:
+1) function-name must be "search"
+2) args must contain the search content
+3) Put your final answer in the format of \boxed{answer}.
 """
 
 
@@ -29,47 +36,56 @@ class MMSearchAgent:
     def __init__(self, rollout_engine: RolloutEngine):
         self.rollout_engine = rollout_engine
         self.tools = get_mmsearch_tools()
-        self.openai_tools = [tool.json for tool in self.tools.values()]
 
     @staticmethod
-    def _parse_tool_call(tool_call, idx: int) -> tuple[str, str, dict]:
-        tool_id = f"tool_call_{idx}"
-        tool_name = ""
-        args_raw = "{}"
+    def _extract_tool_call(content: str) -> tuple[str, dict] | None:
+        start_tag = "<tool_call>"
+        end_tag = "</tool_call>"
+        if start_tag not in content or end_tag not in content:
+            return None
+        start = content.index(start_tag) + len(start_tag)
+        end = content.index(end_tag, start)
+        payload = content[start:end].strip()
+        if not payload:
+            raise ValueError("Empty tool_call payload.")
 
-        if isinstance(tool_call, dict):
-            tool_id = tool_call.get("id", tool_id)
-            if "function" in tool_call:
-                fn = tool_call["function"]
-                tool_name = fn.get("name", "")
-                args_raw = fn.get("arguments", "{}")
-            else:
-                tool_name = tool_call.get("name", "")
-                args_raw = tool_call.get("arguments", "{}")
+        call = json.loads(payload)
+        if not isinstance(call, dict):
+            raise ValueError("tool_call payload must be a JSON object.")
+
+        name = call.get("name")
+        args = call.get("args")
+        if not isinstance(name, str) or not name:
+            raise ValueError("tool_call 'name' must be a non-empty string.")
+        if args is None:
+            raise ValueError("tool_call must contain 'args'.")
+        return name, args
+
+    @staticmethod
+    def _normalize_search_query(args) -> str:
+        if isinstance(args, str):
+            query = args
+        elif isinstance(args, dict):
+            query = args.get("query", args.get("text"))
         else:
-            tool_id = getattr(tool_call, "id", tool_id)
-            fn = getattr(tool_call, "function", None)
-            if fn is not None:
-                tool_name = getattr(fn, "name", "")
-                args_raw = getattr(fn, "arguments", "{}")
-            else:
-                tool_name = getattr(tool_call, "name", "")
-                args_raw = getattr(tool_call, "arguments", "{}")
+            raise ValueError(f"Invalid args type for search: {type(args)}")
 
-        if not tool_name:
-            raise ValueError(f"Invalid tool call without name: {tool_call}")
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("search args must include non-empty query text.")
+        return query.strip()
 
-        if isinstance(args_raw, str):
-            args = json.loads(args_raw)
-        elif isinstance(args_raw, dict):
-            args = args_raw
-        else:
-            raise ValueError(f"Invalid tool arguments type for {tool_name}: {type(args_raw)}")
-
-        if not isinstance(args, dict):
-            raise ValueError(f"Tool arguments must be dict for {tool_name}, got {type(args)}")
-
-        return tool_id, tool_name, args
+    @staticmethod
+    def _extract_prediction(content: str) -> str:
+        """
+        Extract answer strictly from \\boxed{...} as required by SYSTEM_PROMPT.
+        """
+        matches = re.findall(r"\\boxed\{([^{}]+)\}", content)
+        if not matches:
+            raise ValueError("Model output must contain final answer as \\boxed{answer}.")
+        answer = matches[-1].strip()
+        if not answer:
+            raise ValueError("Boxed answer is empty.")
+        return answer
 
     async def run(self, query: str, query_image: Image.Image, uid: str, **kwargs) -> dict:
         prompt_text = query + "\n" + SYSTEM_PROMPT.strip()
@@ -95,61 +111,35 @@ class MMSearchAgent:
 
         first_output: ModelOutput = await self.rollout_engine.get_model_response(
             messages=messages,
-            tools=self.openai_tools,
-            tool_choice="auto",
             application_id=uid,
             **kwargs,
         )
 
-        if getattr(first_output, "tool_calls", None):
-            assistant_content = (first_output.content or first_output.text or "") or ""
-            assistant_tool_calls = []
-            tool_messages = []
+        first_content = (first_output.content or first_output.text or "").strip()
+        tool_call = self._extract_tool_call(first_content)
+        if tool_call is not None:
+            tool_name, tool_args = tool_call
+            if tool_name != "search":
+                raise ValueError(f"Unsupported tool name: {tool_name}. Expected 'search'.")
 
-            for idx, tool_call in enumerate(first_output.tool_calls):
-                tool_id, tool_name, tool_args = self._parse_tool_call(tool_call, idx)
-                tool = self.tools.get(tool_name)
-                if tool is None:
-                    raise ValueError(f"Unknown tool requested by model: {tool_name}")
+            search_query = self._normalize_search_query(tool_args)
+            tool = self.tools.get("search")
+            if tool is None:
+                raise ValueError("search tool is not registered.")
 
-                tool_output = await tool.async_forward(**tool_args)
-                assistant_tool_calls.append(
-                    {
-                        "id": tool_id,
-                        "type": "function",
-                        "function": {
-                            "name": tool_name,
-                            "arguments": json.dumps(tool_args, ensure_ascii=False),
-                        },
-                    }
-                )
-                tool_messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tool_id,
-                        "content": tool_output.to_string(),
-                    }
-                )
+            tool_output = await tool.async_forward(query=search_query)
+            tool_response = f"<tool_response>\n{tool_output.to_string()}\n</tool_response>"
 
             final_messages = messages + [
-                {
-                    "role": "assistant",
-                    "content": assistant_content,
-                    "tool_calls": assistant_tool_calls,
-                }
+                {"role": "assistant", "content": first_content},
+                {"role": "user", "content": tool_response},
             ]
-            final_messages.extend(tool_messages)
 
-            output: ModelOutput = await self.rollout_engine.get_model_response(
-                messages=final_messages,
-                tools=self.openai_tools,
-                tool_choice="auto",
-                application_id=uid,
-                **kwargs,
-            )
-            prediction = (output.content or output.text or "").strip()
+            output: ModelOutput = await self.rollout_engine.get_model_response(messages=final_messages, application_id=uid, **kwargs)
+            final_content = (output.content or output.text or "").strip()
+            prediction = self._extract_prediction(final_content)
             return {"messages": final_messages, "output": output, "prediction": prediction}
 
-        prediction = (first_output.content or first_output.text or "").strip()
+        prediction = self._extract_prediction(first_content)
         return {"messages": messages, "output": first_output, "prediction": prediction}
 
