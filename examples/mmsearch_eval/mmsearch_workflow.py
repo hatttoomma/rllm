@@ -31,7 +31,7 @@ class MMSearchWorkflow(Workflow):
 
         query = task["query"]
         query_image = task["query_image"]
-        assert isinstance(query_image, Image.Image)
+        assert isinstance(query_image, Image.Image), f"query_image is not an Image.Image: {query_image}"
 
         result = await self.agent.run(query=query, query_image=query_image, uid=uid, **kwargs)
         prediction = result["prediction"]

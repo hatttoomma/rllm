@@ -220,7 +220,7 @@ def main():
     p.add_argument("--log-every", type=int, default=10)
 
     # model
-    p.add_argument("--model", default="Qwen/Qwen3-VL-30B-A3B-Instruct")
+    p.add_argument("--model", default="Qwen/Qwen3-VL-8B-Instruct")
     p.add_argument("--api-key", default="EMPTY")
 
     # sampling / engine
