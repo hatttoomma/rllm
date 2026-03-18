@@ -86,7 +86,7 @@ class MMSearchAgent:
         """
         matches = re.findall(r"\\boxed\{((?:[^{}]|\{[^{}]*\})*)\}", content, flags=re.DOTALL)
         if not matches:
-            answer = ""
+            return ""
         answer = matches[-1].strip()
         return answer
 
