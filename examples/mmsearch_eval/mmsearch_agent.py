@@ -13,7 +13,7 @@ def _pil_to_data_url(image: Image.Image) -> str:
     b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
     return f"data:image/jpeg;base64,{b64}"
 
-SYSTEM_PROMPT = "\nAnswer the question with a single word or phrasedirectly."
+SYSTEM_PROMPT = "\nAnswer the question with a single word or phrase directly."
 class MMSearchAgent:
     """
     Minimal single-turn agent for MMSearch.
