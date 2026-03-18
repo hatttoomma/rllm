@@ -79,9 +79,9 @@ class MMSearchAgent:
         """
         Extract answer strictly from \\boxed{...} as required by SYSTEM_PROMPT.
         """
-        matches = re.findall(r"\\boxed\{([^{}]+)\}", content)
+        matches = re.findall(r"\\boxed\{((?:[^{}]|\{[^{}]*\})*)\}", content, flags=re.DOTALL)
         if not matches:
-            raise ValueError(f"Model output must contain final answer as format answer. The output is {content}")
+            raise ValueError(f"Model output must contain final answer as format answer. The output is: {content}")
         answer = matches[-1].strip()
         if not answer:
             raise ValueError("Boxed answer is empty.")
