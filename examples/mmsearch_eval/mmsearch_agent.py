@@ -25,15 +25,25 @@ class MMSearchAgent:
         self.rollout_engine = rollout_engine
 
     async def run(self, query: str, query_image: Image.Image, uid: str, **kwargs) -> dict:
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": query},
-                    {"type": "image_url", "image_url": {"url": _pil_to_data_url(query_image)}},
-                ],
-            }
-        ]
+        if query_image is not None:
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": query},
+                        {"type": "image_url", "image_url": {"url": _pil_to_data_url(query_image)}},
+                    ],
+                }
+            ]
+        else:
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": query},
+                    ],
+                }
+            ]
 
         output: ModelOutput = await self.rollout_engine.get_model_response(
             messages=messages,
