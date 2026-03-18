@@ -249,8 +249,7 @@ def main():
     # for VL model
     p.add_argument(
         "--limit-mm-per-prompt",
-        default="image=4",
-        help='example: "image=4" or "image=8,video=0"',
+        default='{"image": 4}',
     )
 
     args = p.parse_args()
