@@ -30,7 +30,7 @@ class MMSearchAgent:
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": query},
+                        {"type": "text", "text": query + SYSTEM_PROMPT},
                         {"type": "image_url", "image_url": {"url": _pil_to_data_url(query_image)}},
                     ],
                 }
