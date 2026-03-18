@@ -141,6 +141,7 @@ This project supports:
 TODO:
 1. implement qwen3 series eval using rllm and verl
 2. add text search tools.
+FIX: llm as the judge fails when prediction is empty
 
 Implementation:
 tool function;

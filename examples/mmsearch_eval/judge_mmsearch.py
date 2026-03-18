@@ -63,6 +63,13 @@ def build_prompt(item: dict[str, Any]) -> str:
     )
 
 
+def _prediction_is_empty(item: dict[str, Any]) -> bool:
+    prediction = item.get("prediction", "")
+    if prediction is None:
+        return True
+    return not str(prediction).strip()
+
+
 def judge_one(client: OpenAI, model: str, item: dict[str, Any], temperature: float, max_tokens: int) -> dict[str, Any]:
     user_prompt = build_prompt(item)
     messages = [
@@ -153,6 +160,20 @@ def main() -> None:
         for item in records:
             total += 1
             row = dict(item)
+            if _prediction_is_empty(item):
+                judge_correct = False
+                row["judge"] = {
+                    "is_correct": False,
+                    "score": 0.0,
+                    "reason": "prediction is empty or whitespace-only; skip judge inference.",
+                }
+                if "exact_match" in item:
+                    exact_match_available += 1
+                    if bool(item["exact_match"]) == judge_correct:
+                        agree_with_exact_match += 1
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+                continue
+
             try:
                 j = judge_one(
                     client=client,
