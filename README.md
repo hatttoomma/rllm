@@ -126,3 +126,23 @@ Our work is done as part of [Berkeley Sky Computing Lab](https://sky.cs.berkeley
 ```
 
 You may also cite our prior work [DeepScaleR](https://scholar.googleusercontent.com/scholar.bib?q=info:PrmBADk39GwJ:scholar.google.com/&output=citation&scisdr=CgIJFx-xEMCQ6zOgcuI:AAZF9b8AAAAAaPCmauIfzg8Rm9ImNYDad0uPUK8&scisig=AAZF9b8AAAAAaPCmahXsNqb1jTQBw2iPfw2vm9g&scisf=4&ct=citation&cd=-1&hl=en&scfhb=1), [DeepCoder](https://scholar.googleusercontent.com/scholar.bib?q=info:xpZNEPI6opAJ:scholar.google.com/&output=citation&scisdr=CgIJFx-xEMCQ6zOgjM8:AAZF9b8AAAAAaPCmlM_hb3S0tzBSVrRYBZYDLWg&scisig=AAZF9b8AAAAAaPCmlG109SG8d8230AiDP4jMxlw&scisf=4&ct=citation&cd=-1&hl=en&scfhb=1), and [DeepSWE](https://scholar.googleusercontent.com/scholar.bib?q=info:J9rT3SnY_aMJ:scholar.google.com/&output=citation&scisdr=CgIJFx-xEMCQ6zOg3D4:AAZF9b8AAAAAaPCmxD7Nl0xA_AcAeydpcE1BXCo&scisig=AAZF9b8AAAAAaPCmxE2Spzf5lf-2Toys5xEpnuA&scisf=4&ct=citation&cd=-1&hl=en&scfhb=1).
+Enhancing multimodal search agents tool learning with TTRL
+
+A base training framework for multimodal-agent test-time reinforcement learning built on top of rLLM and verl.
+This project supports:
+- multimodal observations (text + image)
+- agent/environment based rollouts
+- majority-voting pseudo-label generation
+- test-time RL with PPO/GRPO-style optimization
+- extensible verifier and tool-use modules
+
+TODO:
+1. implement qwen3 series eval using rllm and verl
+2. add text search tools.
+
+Implementation:
+tool function;
+agent workflow(rollout generation funciton)(implemented in rllm);
+reward function;
+data processing;
+rl training pipeline(get data; rollout; get reward; get log; backprop; update)(implemented by verl)
