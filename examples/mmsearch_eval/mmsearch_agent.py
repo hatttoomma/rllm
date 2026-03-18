@@ -81,7 +81,7 @@ class MMSearchAgent:
         """
         matches = re.findall(r"\\boxed\{([^{}]+)\}", content)
         if not matches:
-            raise ValueError("Model output must contain final answer as \\boxed{answer}.")
+            raise ValueError(f"Model output must contain final answer as format answer. The output is {content}")
         answer = matches[-1].strip()
         if not answer:
             raise ValueError("Boxed answer is empty.")
