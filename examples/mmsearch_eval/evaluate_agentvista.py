@@ -165,6 +165,7 @@ async def _run_one(wf, ex, i, sem, max_tool_call: int, max_images: int):
             "prediction": ep.metrics["prediction"],
             "labels": ep.metrics["labels"],
             "exact_match": ep.metrics["exact_match"],
+            "tool_calls": ep.metrics.get("tool_calls", []),
             "is_correct": bool(ep.is_correct),
         }
 
@@ -216,6 +217,7 @@ async def _run_eval(args, base_url: str) -> None:
                         "prediction": row["prediction"],
                         "labels": row["labels"],
                         "exact_match": row["exact_match"],
+                        "tool_calls": row["tool_calls"],
                     },
                     ensure_ascii=False,
                 )
