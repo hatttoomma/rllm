@@ -27,6 +27,11 @@ Rules:
 3) Put your final answer in the format of \boxed{answer}.
 """
 
+FIRST_ROUND_PROMPT = """
+Now you should answer the question with information from the search tool.
+Remember to put your final answer in the format of \boxed{answer}.
+"""
+
 
 class MMSearchAgent:
     """
@@ -132,7 +137,7 @@ class MMSearchAgent:
 
             final_messages = messages + [
                 {"role": "assistant", "content": first_content},
-                {"role": "user", "content": tool_response},
+                {"role": "user", "content": tool_response + FIRST_ROUND_PROMPT},
             ]
 
             output: ModelOutput = await self.rollout_engine.get_model_response(messages=final_messages, application_id=uid, **kwargs)
