@@ -12,7 +12,7 @@ from rllm.engine.rollout.openai_engine import OpenAIEngine
 
 
 async def _run_eval(args) -> None:
-    ds = load_dataset(args.dataset, split=args.split)
+    ds = load_dataset(args.dataset, args.split, split=args.split)
 
     engine = OpenAIEngine(
         model=args.model,
