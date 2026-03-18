@@ -1,6 +1,7 @@
 import base64
 import json
 import re
+from collections.abc import Sequence
 from io import BytesIO
 
 from PIL import Image
@@ -126,30 +127,23 @@ class MMSearchAgent:
         answer = matches[-1].strip()
         return answer
 
-    async def run(self, query: str, query_image: Image.Image, uid: str, max_tool_call: int = 1, **kwargs) -> dict:
+    async def run(
+        self,
+        query: str,
+        query_image: Image.Image | Sequence[Image.Image] | None,
+        uid: str,
+        max_tool_call: int = 1,
+        **kwargs,
+    ) -> dict:
         if max_tool_call < 0:
             raise ValueError("max_tool_call must be >= 0.")
 
         prompt_text = query + "\n" + SYSTEM_PROMPT.strip()
-        if query_image is not None:
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt_text},
-                        {"type": "image_url", "image_url": {"url": _pil_to_data_url(query_image)}},
-                    ],
-                }
-            ]
-        else:
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt_text},
-                    ],
-                }
-            ]
+        user_content = [{"type": "text", "text": prompt_text}]
+        for image in self._normalize_query_images(query_image):
+            user_content.append({"type": "image_url", "image_url": {"url": _pil_to_data_url(image)}})
+
+        messages = [{"role": "user", "content": user_content}]
 
         curr_messages = messages
         output: ModelOutput = await self.rollout_engine.get_model_response(
@@ -186,4 +180,21 @@ class MMSearchAgent:
             ]
             output = await self.rollout_engine.get_model_response(messages=curr_messages, application_id=uid, **kwargs)
             content = (output.content or output.text or "").strip()
+
+    @staticmethod
+    def _normalize_query_images(query_image) -> list[Image.Image]:
+        if query_image is None:
+            return []
+        if isinstance(query_image, Image.Image):
+            return [query_image]
+        if isinstance(query_image, Sequence):
+            images = []
+            for image in query_image:
+                if image is None:
+                    continue
+                if not isinstance(image, Image.Image):
+                    raise ValueError(f"Unsupported query image type: {type(image)}")
+                images.append(image)
+            return images
+        raise ValueError(f"Unsupported query image container type: {type(query_image)}")
 

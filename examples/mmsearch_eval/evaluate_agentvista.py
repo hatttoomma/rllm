@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 import uuid
+from collections.abc import Sequence
 from contextlib import closing
 
 import requests
@@ -128,15 +129,29 @@ def stop_process_tree(proc: subprocess.Popen) -> None:
             pass
 
 
-async def _run_one(wf, ex, i, sem, max_tool_call: int):
+def _load_split(dataset_name: str, split: str):
+    # Some datasets expose split as config name while others do not.
+    return load_dataset(dataset_name, split=split)
+
+
+def _normalize_query_images(images_field, max_images: int):
+    if images_field is None:
+        return None
+    if isinstance(images_field, Sequence) and not isinstance(images_field, (str, bytes)):
+        return list(images_field)[:max_images]
+    return [images_field][:max_images]
+
+
+async def _run_one(wf, ex, i, sem, max_tool_call: int, max_images: int):
     async with sem:
         uid = str(uuid.uuid4())
+        query_images = _normalize_query_images(ex.get("images"), max_images=max_images)
 
         ep = await wf.run(
             task={
-                "query": ex["query"],
-                "query_image": ex["query_image"],
-                "gt_answer": ex["gt_answer"],
+                "query": ex["problem"],
+                "query_image": query_images,
+                "gt_answer": ex["answer"],
                 "alternative_gt_answers": ex.get("alternative_gt_answers", []),
             },
             uid=uid,
@@ -146,7 +161,7 @@ async def _run_one(wf, ex, i, sem, max_tool_call: int):
         return {
             "idx": i,
             "uid": uid,
-            "query": ex["query"],
+            "query": ex["problem"],
             "prediction": ep.metrics["prediction"],
             "labels": ep.metrics["labels"],
             "exact_match": ep.metrics["exact_match"],
@@ -155,7 +170,7 @@ async def _run_one(wf, ex, i, sem, max_tool_call: int):
 
 
 async def _run_eval(args, base_url: str) -> None:
-    ds = load_dataset(args.dataset, args.split, split=args.split)
+    ds = _load_split(args.dataset, args.split)
 
     engine = OpenAIEngine(
         model=args.model,
@@ -178,7 +193,7 @@ async def _run_eval(args, base_url: str) -> None:
 
     sem = asyncio.Semaphore(args.concurrency)
     tasks = [
-        asyncio.create_task(_run_one(wf, ex, i, sem, args.max_tool_call))
+        asyncio.create_task(_run_one(wf, ex, i, sem, args.max_tool_call, args.max_images))
         for i, ex in enumerate(ds)
     ]
 
@@ -231,6 +246,7 @@ async def _run_eval(args, base_url: str) -> None:
         "base_url": base_url,
         "concurrency": args.concurrency,
         "max_tool_call": args.max_tool_call,
+        "max_images": args.max_images,
     }
 
     with open(args.output + ".summary.json", "w", encoding="utf-8") as f:
@@ -243,12 +259,13 @@ def main():
     p = argparse.ArgumentParser()
 
     # dataset / eval
-    p.add_argument("--dataset", default="CaraJ/MMSearch")
-    p.add_argument("--split", default="end2end")
-    p.add_argument("--output", default="logs/mmsearch.jsonl")
+    p.add_argument("--dataset", default="Warrieryes/AgentVista")
+    p.add_argument("--split", default="train")
+    p.add_argument("--output", default="logs/agentvista_train.jsonl")
     p.add_argument("--log-every", type=int, default=10)
     p.add_argument("--concurrency", type=int, default=8)
     p.add_argument("--max-tool-call", type=int, default=1)
+    p.add_argument("--max-images", type=int, default=10)
 
     # model
     p.add_argument("--model", default="Qwen/Qwen3-VL-8B-Instruct")
@@ -280,12 +297,14 @@ def main():
     # for VL model
     p.add_argument(
         "--limit-mm-per-prompt",
-        default='{"image": 4, "video": 0}',
+        default='{"image": 10, "video": 0}',
     )
 
     args = p.parse_args()
     if args.max_tool_call < 0:
         raise ValueError("--max-tool-call must be >= 0")
+    if args.max_images < 1:
+        raise ValueError("--max-images must be >= 1")
 
     proc = None
     try:
