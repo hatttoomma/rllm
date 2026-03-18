@@ -128,7 +128,7 @@ def stop_process_tree(proc: subprocess.Popen) -> None:
             pass
 
 
-async def _run_one(wf, ex, i, sem):
+async def _run_one(wf, ex, i, sem, max_tool_call: int):
     async with sem:
         uid = str(uuid.uuid4())
 
@@ -140,6 +140,7 @@ async def _run_one(wf, ex, i, sem):
                 "alternative_gt_answers": ex.get("alternative_gt_answers", []),
             },
             uid=uid,
+            max_tool_call=max_tool_call,
         )
 
         return {
@@ -149,6 +150,7 @@ async def _run_one(wf, ex, i, sem):
             "prediction": ep.metrics["prediction"],
             "labels": ep.metrics["labels"],
             "exact_match": ep.metrics["exact_match"],
+            "tool_calls": ep.metrics.get("tool_calls", []),
             "is_correct": bool(ep.is_correct),
         }
 
@@ -177,7 +179,7 @@ async def _run_eval(args, base_url: str) -> None:
 
     sem = asyncio.Semaphore(args.concurrency)
     tasks = [
-        asyncio.create_task(_run_one(wf, ex, i, sem))
+        asyncio.create_task(_run_one(wf, ex, i, sem, args.max_tool_call))
         for i, ex in enumerate(ds)
     ]
 
@@ -200,6 +202,7 @@ async def _run_eval(args, base_url: str) -> None:
                         "prediction": row["prediction"],
                         "labels": row["labels"],
                         "exact_match": row["exact_match"],
+                        "tool_calls": row["tool_calls"],
                     },
                     ensure_ascii=False,
                 )
@@ -229,6 +232,7 @@ async def _run_eval(args, base_url: str) -> None:
         "model": args.model,
         "base_url": base_url,
         "concurrency": args.concurrency,
+        "max_tool_call": args.max_tool_call,
     }
 
     with open(args.output + ".summary.json", "w", encoding="utf-8") as f:
@@ -246,6 +250,7 @@ def main():
     p.add_argument("--output", default="logs/mmsearch.jsonl")
     p.add_argument("--log-every", type=int, default=10)
     p.add_argument("--concurrency", type=int, default=8)
+    p.add_argument("--max-tool-call", type=int, default=1)
 
     # model
     p.add_argument("--model", default="Qwen/Qwen3-VL-8B-Instruct")
@@ -281,6 +286,8 @@ def main():
     )
 
     args = p.parse_args()
+    if args.max_tool_call < 0:
+        raise ValueError("--max-tool-call must be >= 0")
 
     proc = None
     try:

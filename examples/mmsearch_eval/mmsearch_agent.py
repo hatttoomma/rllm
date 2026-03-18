@@ -17,25 +17,27 @@ def _pil_to_data_url(image: Image.Image) -> str:
     return f"data:image/jpeg;base64,{b64}"
 
 SYSTEM_PROMPT = """
-You can use a text search tool when needed.
+You can use tools when needed.
 If you need to call the tool, you MUST use exactly this format:
-<tool_call>{"name":"search","args":{"query":"your search text"}}</tool_call>
+<tool_call>{"name":"tool_name","args":{...}}</tool_call>
 
 Rules:
-1) function-name must be "search"
-2) args must contain the search content
+1) Available tools:
+   - search: args must include "query" string
+   - code_interpreter: args must include "code" string, optional "timeout" integer
+2) Use tools only when necessary. You may call tools for multiple rounds if needed.
 3) Put your final answer in the format of \boxed{answer}.
 """
 
-FIRST_ROUND_PROMPT = """
-Now you should answer the question with information from the search tool.
+FINAL_ROUND_PROMPT = """
+Now you should answer the question with information from the tools.
 Remember to put your final answer in the format of \boxed{answer}.
 """
 
 
 class MMSearchAgent:
     """
-    Minimal MMSearch agent with optional one-round tool calling.
+    MMSearch agent with configurable multi-round tool calling.
     """
 
     def __init__(self, rollout_engine: RolloutEngine):
@@ -80,6 +82,40 @@ class MMSearchAgent:
         return query.strip()
 
     @staticmethod
+    def _normalize_code_args(args) -> tuple[str, int]:
+        if not isinstance(args, dict):
+            raise ValueError("code_interpreter args must be an object with 'code'.")
+        code = args.get("code")
+        if not isinstance(code, str) or not code.strip():
+            raise ValueError("code_interpreter args must include non-empty code.")
+
+        timeout = args.get("timeout", 12)
+        if not isinstance(timeout, int):
+            raise ValueError("code_interpreter timeout must be an integer.")
+        return code, timeout
+
+    @staticmethod
+    def _format_tool_response(tool_name: str, tool_result: str) -> str:
+        return f"<tool_response>\nTool: {tool_name}\n{tool_result}\n</tool_response>"
+
+    async def _run_tool(self, tool_name: str, tool_args) -> str:
+        tool = self.tools.get(tool_name)
+        if tool is None:
+            raise ValueError(f"Tool '{tool_name}' is not registered.")
+
+        if tool_name == "search":
+            search_query = self._normalize_search_query(tool_args)
+            output = await tool.async_forward(query=search_query)
+            return output.to_string()
+
+        if tool_name == "code_interpreter":
+            code, timeout = self._normalize_code_args(tool_args)
+            output = await tool.async_forward(code=code, timeout=timeout)
+            return output.to_string()
+
+        raise ValueError(f"Unsupported tool name: {tool_name}.")
+
+    @staticmethod
     def _extract_prediction(content: str) -> str:
         """
         Extract answer strictly from \\boxed{...} as required by SYSTEM_PROMPT.
@@ -90,7 +126,10 @@ class MMSearchAgent:
         answer = matches[-1].strip()
         return answer
 
-    async def run(self, query: str, query_image: Image.Image, uid: str, **kwargs) -> dict:
+    async def run(self, query: str, query_image: Image.Image, uid: str, max_tool_call: int = 1, **kwargs) -> dict:
+        if max_tool_call < 0:
+            raise ValueError("max_tool_call must be >= 0.")
+
         prompt_text = query + "\n" + SYSTEM_PROMPT.strip()
         if query_image is not None:
             messages = [
@@ -112,37 +151,39 @@ class MMSearchAgent:
                 }
             ]
 
-        first_output: ModelOutput = await self.rollout_engine.get_model_response(
-            messages=messages,
+        curr_messages = messages
+        output: ModelOutput = await self.rollout_engine.get_model_response(
+            messages=curr_messages,
             application_id=uid,
             **kwargs,
         )
+        content = (output.content or output.text or "").strip()
+        tool_calls = 0
+        tool_calls_trace: list[dict] = []
 
-        first_content = (first_output.content or first_output.text or "").strip()
-        tool_call = self._extract_tool_call(first_content)
-        if tool_call is not None:
+        while True:
+            tool_call = self._extract_tool_call(content)
+            if tool_call is None:
+                prediction = self._extract_prediction(content)
+                return {"messages": curr_messages, "output": output, "prediction": prediction, "tool_calls": tool_calls_trace}
+
+            if tool_calls >= max_tool_call:
+                prediction = self._extract_prediction(content)
+                return {"messages": curr_messages, "output": output, "prediction": prediction, "tool_calls": tool_calls_trace}
+
             tool_name, tool_args = tool_call
-            if tool_name != "search":
-                raise ValueError(f"Unsupported tool name: {tool_name}. Expected 'search'.")
+            tool_calls_trace.append({"round": tool_calls + 1, "tool": tool_name, "args": tool_args})
+            tool_result = await self._run_tool(tool_name, tool_args)
+            tool_calls += 1
 
-            search_query = self._normalize_search_query(tool_args)
-            tool = self.tools.get("search")
-            if tool is None:
-                raise ValueError("search tool is not registered.")
+            next_prompt = self._format_tool_response(tool_name, tool_result)
+            if tool_calls == max_tool_call:
+                next_prompt += FINAL_ROUND_PROMPT
 
-            tool_output = await tool.async_forward(query=search_query)
-            tool_response = f"<tool_response>\n{tool_output.to_string()}\n</tool_response>"
-
-            final_messages = messages + [
-                {"role": "assistant", "content": first_content},
-                {"role": "user", "content": tool_response + FIRST_ROUND_PROMPT},
+            curr_messages = curr_messages + [
+                {"role": "assistant", "content": content},
+                {"role": "user", "content": next_prompt},
             ]
-
-            output: ModelOutput = await self.rollout_engine.get_model_response(messages=final_messages, application_id=uid, **kwargs)
-            final_content = (output.content or output.text or "").strip()
-            prediction = self._extract_prediction(final_content)
-            return {"messages": final_messages, "output": output, "prediction": prediction}
-
-        prediction = self._extract_prediction(first_content)
-        return {"messages": messages, "output": first_output, "prediction": prediction}
+            output = await self.rollout_engine.get_model_response(messages=curr_messages, application_id=uid, **kwargs)
+            content = (output.content or output.text or "").strip()
 

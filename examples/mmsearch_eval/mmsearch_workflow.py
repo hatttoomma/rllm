@@ -61,6 +61,7 @@ class MMSearchWorkflow(Workflow):
                 "prediction": prediction,
                 "labels": labels,
                 "exact_match": bool(is_correct),
+                "tool_calls": result.get("tool_calls", []),
             },
         )
         return ep

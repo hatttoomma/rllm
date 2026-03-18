@@ -6,6 +6,7 @@ import http.client
 import json
 import os
 
+from rllm.tools.code_tools.python_interpreter import PythonInterpreter
 from rllm.tools.tool_base import Tool, ToolOutput
 
 
@@ -70,5 +71,12 @@ class SerperSearchTool(Tool):
 
 def get_mmsearch_tools() -> dict[str, Tool]:
     """Return tools used by MMSearch agent."""
-    return {"search": SerperSearchTool()}
+    return {
+        "search": SerperSearchTool(),
+        "code_interpreter": PythonInterpreter(
+            backend="local",
+            name="code_interpreter",
+            description="Execute Python code to compute, transform data, or verify intermediate results.",
+        ),
+    }
 
