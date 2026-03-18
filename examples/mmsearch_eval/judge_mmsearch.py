@@ -11,7 +11,8 @@ JUDGE_SYSTEM_PROMPT = (
     "Given a question, a model prediction, and one or more reference answers, "
     "decide whether the prediction is semantically correct. "
     "Be robust to minor formatting differences, capitalization, and punctuation, "
-    "but do not accept incorrect entities, numbers, or factual mismatches."
+    "but do not accept incorrect entities, numbers, or factual mismatches. "
+    "If prediction is empty, whitespace-only, or missing, it must be judged as incorrect."
 )
 
 JUDGE_OUTPUT_SCHEMA = {
@@ -54,6 +55,7 @@ def build_prompt(item: dict[str, Any]) -> str:
         f"Question:\n{query}\n\n"
         f"Prediction:\n{prediction}\n\n"
         f"Reference answers:\n{labels_text}\n\n"
+        "Important rule: if Prediction is empty or whitespace-only, set is_correct=false and score=0.\n\n"
         "Return JSON with fields:\n"
         "- is_correct: boolean\n"
         "- score: float in [0,1]\n"
