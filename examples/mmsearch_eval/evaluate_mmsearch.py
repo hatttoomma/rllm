@@ -72,6 +72,7 @@ def start_vllm_server(args):
         cmd.append("--trust-remote-code")
 
     if args.limit_mm_per_prompt:
+        json.loads(args.limit_mm_per_prompt)  # validate JSON
         cmd.extend(["--limit-mm-per-prompt", args.limit_mm_per_prompt])
 
     if args.max_num_seqs is not None:
@@ -127,6 +128,31 @@ def stop_process_tree(proc: subprocess.Popen) -> None:
             pass
 
 
+async def _run_one(wf, ex, i, sem):
+    async with sem:
+        uid = str(uuid.uuid4())
+
+        ep = await wf.run(
+            task={
+                "query": ex["query"],
+                "query_image": ex["query_image"],
+                "gt_answer": ex["gt_answer"],
+                "alternative_gt_answers": ex.get("alternative_gt_answers", []),
+            },
+            uid=uid,
+        )
+
+        return {
+            "idx": i,
+            "uid": uid,
+            "query": ex["query"],
+            "prediction": ep.metrics["prediction"],
+            "labels": ep.metrics["labels"],
+            "exact_match": ep.metrics["exact_match"],
+            "is_correct": bool(ep.is_correct),
+        }
+
+
 async def _run_eval(args, base_url: str) -> None:
     ds = load_dataset(args.dataset, args.split, split=args.split)
 
@@ -149,43 +175,43 @@ async def _run_eval(args, base_url: str) -> None:
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
+    sem = asyncio.Semaphore(args.concurrency)
+    tasks = [
+        asyncio.create_task(_run_one(wf, ex, i, sem))
+        for i, ex in enumerate(ds)
+    ]
+
     correct = 0
     total = 0
 
     with open(args.output, "w", encoding="utf-8") as f:
-        for i, ex in enumerate(ds):
-            uid = str(uuid.uuid4())
-
-            ep = await wf.run(
-                task={
-                    "query": ex["query"],
-                    "query_image": ex["query_image"],
-                    "gt_answer": ex["gt_answer"],
-                    "alternative_gt_answers": ex.get("alternative_gt_answers", []),
-                },
-                uid=uid,
-            )
+        for fut in asyncio.as_completed(tasks):
+            row = await fut
 
             total += 1
-            correct += 1 if ep.is_correct else 0
+            correct += 1 if row["is_correct"] else 0
 
-            row = {
-                "idx": i,
-                "uid": uid,
-                "query": ex["query"],
-                "prediction": ep.metrics["prediction"],
-                "labels": ep.metrics["labels"],
-                "exact_match": ep.metrics["exact_match"],
-            }
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "idx": row["idx"],
+                        "uid": row["uid"],
+                        "query": row["query"],
+                        "prediction": row["prediction"],
+                        "labels": row["labels"],
+                        "exact_match": row["exact_match"],
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
 
-            if (i + 1) % args.log_every == 0:
+            if total % args.log_every == 0:
                 acc = correct / total if total else 0.0
                 print(
                     json.dumps(
                         {
-                            "done": i + 1,
-                            "total": total,
+                            "done": total,
                             "correct": correct,
                             "accuracy": acc,
                         },
@@ -202,6 +228,7 @@ async def _run_eval(args, base_url: str) -> None:
         "accuracy": acc,
         "model": args.model,
         "base_url": base_url,
+        "concurrency": args.concurrency,
     }
 
     with open(args.output + ".summary.json", "w", encoding="utf-8") as f:
@@ -218,6 +245,7 @@ def main():
     p.add_argument("--split", default="end2end")
     p.add_argument("--output", default="logs/mmsearch.jsonl")
     p.add_argument("--log-every", type=int, default=10)
+    p.add_argument("--concurrency", type=int, default=8)
 
     # model
     p.add_argument("--model", default="Qwen/Qwen3-VL-8B-Instruct")
@@ -249,7 +277,7 @@ def main():
     # for VL model
     p.add_argument(
         "--limit-mm-per-prompt",
-        default='{"image": 4}',
+        default='{"image": 4, "video": 0}',
     )
 
     args = p.parse_args()
