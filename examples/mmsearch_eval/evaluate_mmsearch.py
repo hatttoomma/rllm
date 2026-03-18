@@ -70,7 +70,7 @@ async def _run_eval(args) -> None:
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--dataset", default="CaraJ/MMSearch")
-    p.add_argument("--split", default="test")
+    p.add_argument("--split", default="end2end")
     p.add_argument("--model", default="Qwen/Qwen3-VL-30B-A3B-Instruct")
 
     p.add_argument("--output", default="logs/mmsearch.jsonl")
