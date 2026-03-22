@@ -4,10 +4,10 @@ VAL_DATASET=/home/qyw/rllm/examples/mmsearch_train/data/mmsearch/end2end_verl.pa
 
 python3 -m examples.mmsearch_train.train \
     algorithm.adv_estimator=grpo \
-    data.train_batch_size=128 \
-    data.val_batch_size=512 \
-    data.max_prompt_length=2048 \
-    data.max_response_length=16384 \
+    data.train_batch_size=8 \
+    data.val_batch_size=256 \
+    data.max_prompt_length=4096 \
+    data.max_response_length=2048 \
     data.train_files="$TRAIN_DATASET" \
     data.val_files="$VAL_DATASET" \
     actor_rollout_ref.model.path=$MODEL_PATH \
@@ -16,8 +16,8 @@ python3 -m examples.mmsearch_train.train \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
     actor_rollout_ref.actor.loss_agg_mode=seq-mean-token-mean \
-    actor_rollout_ref.actor.ppo_mini_batch_size=64 \
-    actor_rollout_ref.actor.ppo_micro_batch_size=16 \
+    actor_rollout_ref.actor.ppo_mini_batch_size=1 \
+    actor_rollout_ref.actor.ppo_micro_batch_size=1 \
     actor_rollout_ref.actor.ppo_epochs=1 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
     actor_rollout_ref.actor.ppo_max_token_len_per_gpu=20000 \
@@ -38,7 +38,7 @@ python3 -m examples.mmsearch_train.train \
     actor_rollout_ref.rollout.temperature=0.6 \
     actor_rollout_ref.rollout.top_p=0.95 \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.8 \
-    actor_rollout_ref.rollout.n=8 \
+    actor_rollout_ref.rollout.n=1 \
     actor_rollout_ref.rollout.val_kwargs.n=2 \
     actor_rollout_ref.rollout.val_kwargs.temperature=0.6 \
     actor_rollout_ref.rollout.val_kwargs.top_p=0.95 \

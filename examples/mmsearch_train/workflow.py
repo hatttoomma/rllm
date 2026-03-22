@@ -30,12 +30,12 @@ class MMSearchWorkflow(Workflow):
         self.reset(task=task, uid=uid)
 
         query = task["query"]
-        query_image = task["query_image"]
+        query_image = task["images"]
 
         result = await self.agent.run(query=query, query_image=query_image, uid=uid, **kwargs)
         prediction = result["prediction"]
 
-        labels = [task["gt_answer"]] + list(task.get("alternative_gt_answers", []))
+        labels = task["answer"] # Answer is a list here
         is_correct = _string_match(prediction, labels)
 
         trajectory = Trajectory(name="mmsearch_agent", task=query)

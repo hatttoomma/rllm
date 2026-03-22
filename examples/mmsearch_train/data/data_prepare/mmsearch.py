@@ -31,24 +31,6 @@ from PIL import Image
 from tqdm import tqdm
 
 
-def pil_to_base64(image: Image.Image) -> str:
-    """Convert PIL Image to base64 encoded string."""
-    if image is None:
-        return ""
-    image = image.convert("RGB")
-    buf = BytesIO()
-    image.save(buf, format="JPEG")
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
-
-
-def base64_to_pil(b64_str: str) -> Image.Image | None:
-    """Convert base64 encoded string to PIL Image."""
-    if not b64_str:
-        return None
-    image_bytes = base64.b64decode(b64_str)
-    return Image.open(io.BytesIO(image_bytes))
-
-
 def process_example(example: dict[str, Any], idx: int) -> dict[str, Any] | None:
     """Process a single MMSearch example into verl-compatible format.
 
@@ -72,24 +54,12 @@ def process_example(example: dict[str, Any], idx: int) -> dict[str, Any] | None:
         query_image = example.get("query_image", None)
         query_image_b64 = None
 
-        if query_image is not None:
-            if isinstance(query_image, Image.Image):
-                query_image_b64 = pil_to_base64(query_image)
-            elif isinstance(query_image, list):
-                query_image_b64 = [pil_to_base64(img) for img in query_image if isinstance(img, Image.Image)]
-            elif isinstance(query_image, dict):
-                if "bytes" in query_image:
-                    img = Image.open(io.BytesIO(query_image["bytes"]))
-                    query_image_b64 = pil_to_base64(img)
-                elif "path" in query_image:
-                    img = Image.open(query_image["path"])
-                    query_image_b64 = pil_to_base64(img)
-
         processed = {
             "query": query,
-            "query_image": query_image_b64,
+            "images": query_image,
             "gt_answer": gt_answer,
             "alternative_gt_answers": alternative_gt_answers,
+            "answer": [gt_answer] + alternative_gt_answers,
             "prompt": [{"role": "user", "content": query}],
             "reward_model": {
                 "style": "rule",
@@ -159,9 +129,8 @@ def download_mmsearch_dataset(
             "reward_model": item["reward_model"],
             "extra_info": {
                 "query": item["query"],
-                "query_image": item["query_image"],
-                "gt_answer": item["gt_answer"],
-                "alternative_gt_answers": item["alternative_gt_answers"],
+                "images": item["images"],
+                "answer": item["answer"],
                 "uid": item["uid"],
             },
         }
