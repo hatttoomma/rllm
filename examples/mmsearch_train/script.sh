@@ -8,8 +8,8 @@ python3 -m examples.mmsearch_train.train \
     data.val_batch_size=512 \
     data.max_prompt_length=2048 \
     data.max_response_length=16384 \
-    data.train_files= $TRAIN_DATASET \
-    data.val_files= $VAL_DATASET \
+    data.train_files="$TRAIN_DATASET" \
+    data.val_files="$VAL_DATASET" \
     actor_rollout_ref.model.path=$MODEL_PATH \
     actor_rollout_ref.hybrid_engine=True \
     actor_rollout_ref.actor.optim.lr=1e-6 \
