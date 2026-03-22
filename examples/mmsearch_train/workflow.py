@@ -2,6 +2,7 @@ from PIL import Image
 
 from .agent import MMSearchAgent
 import base64
+import binascii
 
 from rllm.agents.agent import Action, Episode, Step, Trajectory
 from rllm.workflows.workflow import TerminationReason, Workflow
@@ -17,9 +18,31 @@ def _string_match(pred: str, labels: list[str]) -> bool:
     p = _normalize(pred)
     return any(p == _normalize(x) for x in labels)
 
-def decode_base64(b64_str: list) -> Image.Image:
-    # first encode str to base64 then decode to PIL.Image
-    return [Image.open(BytesIO(base64.b64decode(img))) for img in b64_str]
+def decode_base64(images_b64: list[str] | None) -> list[Image.Image]:
+    decoded_images: list[Image.Image] = []
+    for idx, img in enumerate(images_b64 or []):
+        if not img:
+            continue
+        if isinstance(img, bytes):
+            img = img.decode("utf-8")
+        if not isinstance(img, str):
+            raise TypeError(f"Invalid image payload type at index {idx}: {type(img)}")
+
+        # Support both pure base64 and data URLs like data:image/png;base64,....
+        payload = img.split(",", 1)[1] if img.startswith("data:") and "," in img else img
+        try:
+            image_bytes = base64.b64decode(payload, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError(f"Invalid base64 image at index {idx}") from exc
+
+        try:
+            pil_img = Image.open(BytesIO(image_bytes))
+            pil_img.load()
+            decoded_images.append(pil_img)
+        except Exception as exc:
+            raise ValueError(f"Decoded bytes are not a valid image at index {idx}") from exc
+
+    return decoded_images
 
 
 class MMSearchWorkflow(Workflow):

@@ -30,10 +30,10 @@ from datasets import load_dataset
 from PIL import Image
 from tqdm import tqdm
 
-def pil_to_base64(image: Image.Image) -> str:
+def pil_to_base64(image: Image.Image | None) -> str | None:
     """Convert PIL Image to base64 encoded string."""
     if image is None:
-        return ""
+        return None
     image = image.convert("RGB")
     buf = BytesIO()
     image.save(buf, format="PNG")
@@ -64,9 +64,11 @@ def process_example(example: dict[str, Any], idx: int) -> dict[str, Any] | None:
 
         query_image_b64 = pil_to_base64(query_image)
 
+        images = [query_image_b64] if query_image_b64 else []
+
         processed = {
             "query": query,
-            "images": [query_image_b64],
+            "images": images,
             "gt_answer": gt_answer,
             "alternative_gt_answers": alternative_gt_answers,
             "answer": [gt_answer] + alternative_gt_answers,
