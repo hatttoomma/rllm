@@ -95,13 +95,6 @@ def process_example(example: dict[str, Any], idx: int) -> dict[str, Any] | None:
                 "style": "rule",
                 "ground_truth": gt_answer,
             },
-            "extra_info": {
-                "index": idx,
-                "original_example": {
-                    k: v for k, v in example.items()
-                    if k not in ["image", "query", "answer", "alternative_answers"]
-                },
-            },
             "uid": idx,
         }
 
@@ -170,7 +163,6 @@ def download_mmsearch_dataset(
                 "gt_answer": item["gt_answer"],
                 "alternative_gt_answers": item["alternative_gt_answers"],
                 "uid": item["uid"],
-                **item["extra_info"],
             },
         }
         for item in processed_data
