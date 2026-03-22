@@ -130,7 +130,7 @@ class MMSearchAgent:
     async def run(
         self,
         query: str,
-        query_image: Image.Image | Sequence[Image.Image] | None,
+        images: list[Image.Image],
         uid: str,
         max_tool_call: int = 1,
         **kwargs,
@@ -140,7 +140,7 @@ class MMSearchAgent:
 
         prompt_text = query + "\n" + SYSTEM_PROMPT.strip()
         user_content = [{"type": "text", "text": prompt_text}]
-        for image in self._normalize_query_images(query_image):
+        for image in self._normalize_query_images(images):
             user_content.append({"type": "image_url", "image_url": {"url": _pil_to_data_url(image)}})
 
         messages = [{"role": "user", "content": user_content}]
@@ -188,6 +188,15 @@ class MMSearchAgent:
         if isinstance(query_image, Image.Image):
             return [query_image]
         if isinstance(query_image, Sequence):
+            images = []
+            for image in query_image:
+                if image is None:
+                    continue
+                if not isinstance(image, Image.Image):
+                    raise ValueError(f"Unsupported query image type: {type(image)}")
+                images.append(image)
+            return images
+        if isinstance(query_image, list):
             images = []
             for image in query_image:
                 if image is None:
