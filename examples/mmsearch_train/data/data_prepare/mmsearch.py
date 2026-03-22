@@ -65,11 +65,11 @@ def process_example(example: dict[str, Any], idx: int) -> dict[str, Any] | None:
             print(f"Warning: Empty query at index {idx}")
             return None
 
-        gt_answer = example.get("answer", "")
+        gt_answer = example.get("gt_answer", "")
 
-        alternative_gt_answers = example.get("alternative_answers", [])
+        alternative_gt_answers = example.get("alternative_gt_answers", [])
 
-        query_image = example.get("image", None)
+        query_image = example.get("query_image", None)
         query_image_b64 = None
 
         if query_image is not None:
