@@ -1,22 +1,11 @@
-import base64
 import json
 import re
 from collections.abc import Sequence
-from io import BytesIO
 
 from PIL import Image
 
 from .tools import get_mmsearch_tools
 from rllm.engine.rollout import ModelOutput, RolloutEngine
-
-
-def _pil_to_data_url(image: Image.Image) -> str:
-    image = image.convert("RGB")
-    buf = BytesIO()
-    image.save(buf, format="JPEG")
-    b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-    return f"data:image/jpeg;base64,{b64}"
-
 SYSTEM_PROMPT = """
 You can use tools when needed.
 If you need to call the tool, you MUST use exactly this format:
@@ -139,11 +128,8 @@ class MMSearchAgent:
             raise ValueError("max_tool_call must be >= 0.")
 
         prompt_text = query + "\n" + SYSTEM_PROMPT.strip()
-        user_content = [{"type": "text", "text": prompt_text}]
-        for image in self._normalize_query_images(images):
-            user_content.append({"type": "image_url", "image_url": {"url": _pil_to_data_url(image)}})
-
-        messages = [{"role": "user", "content": user_content}]
+        query_images = self._normalize_query_images(images)
+        messages = [{"role": "user", "content": prompt_text, "images": query_images if query_images else None}]
 
         curr_messages = messages
         output: ModelOutput = await self.rollout_engine.get_model_response(
