@@ -5,6 +5,8 @@ import base64
 
 from rllm.agents.agent import Action, Episode, Step, Trajectory
 from rllm.workflows.workflow import TerminationReason, Workflow
+from io import BytesIO
+
 
 
 def _normalize(s: str) -> str:
@@ -38,7 +40,7 @@ class MMSearchWorkflow(Workflow):
         images = task["images"]
 
         images = decode_base64(images)
-        
+
         result = await self.agent.run(query=query, images=images, uid=uid, **kwargs)
         prediction = result["prediction"]
 

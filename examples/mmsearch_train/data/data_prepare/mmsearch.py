@@ -167,7 +167,7 @@ def download_mmsearch_dataset(
 
     print("\nDataset Statistics:")
     print(f"  Total examples: {len(processed_data)}")
-    images_count = sum(1 for item in processed_data if item.get("query_image"))
+    images_count = sum(1 for item in processed_data if item.get("images") and item.get("images")[0])
     print(f"  Examples with images: {images_count}")
 
     return parquet_path
