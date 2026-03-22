@@ -1,6 +1,7 @@
 from PIL import Image
 
 from .agent import MMSearchAgent
+import base64
 
 from rllm.agents.agent import Action, Episode, Step, Trajectory
 from rllm.workflows.workflow import TerminationReason, Workflow
@@ -13,6 +14,10 @@ def _normalize(s: str) -> str:
 def _string_match(pred: str, labels: list[str]) -> bool:
     p = _normalize(pred)
     return any(p == _normalize(x) for x in labels)
+
+def decode_base64(b64_str: list) -> Image.Image:
+    # first encode str to base64 then decode to PIL.Image
+    return [Image.open(BytesIO(base64.b64decode(img))) for img in b64_str]
 
 
 class MMSearchWorkflow(Workflow):
@@ -30,9 +35,11 @@ class MMSearchWorkflow(Workflow):
         self.reset(task=task, uid=uid)
 
         query = task["query"]
-        query_image = task["images"]
+        images = task["images"]
 
-        result = await self.agent.run(query=query, query_image=query_image, uid=uid, **kwargs)
+        images = decode_base64(images)
+        
+        result = await self.agent.run(query=query, images=images, uid=uid, **kwargs)
         prediction = result["prediction"]
 
         labels = task["answer"] # Answer is a list here

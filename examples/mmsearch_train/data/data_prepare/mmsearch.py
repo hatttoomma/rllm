@@ -30,6 +30,15 @@ from datasets import load_dataset
 from PIL import Image
 from tqdm import tqdm
 
+def pil_to_base64(image: Image.Image) -> str:
+    """Convert PIL Image to base64 encoded string."""
+    if image is None:
+        return ""
+    image = image.convert("RGB")
+    buf = BytesIO()
+    image.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
 
 def process_example(example: dict[str, Any], idx: int) -> dict[str, Any] | None:
     """Process a single MMSearch example into verl-compatible format.
@@ -52,11 +61,12 @@ def process_example(example: dict[str, Any], idx: int) -> dict[str, Any] | None:
         alternative_gt_answers = example.get("alternative_gt_answers", [])
 
         query_image = example.get("query_image", None)
-        query_image_b64 = None
+
+        query_image_b64 = pil_to_base64(query_image)
 
         processed = {
             "query": query,
-            "images": query_image,
+            "images": [query_image_b64],
             "gt_answer": gt_answer,
             "alternative_gt_answers": alternative_gt_answers,
             "answer": [gt_answer] + alternative_gt_answers,
