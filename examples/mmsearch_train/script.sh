@@ -5,7 +5,7 @@ VAL_DATASET=/home/qyw/rllm/examples/mmsearch_train/data/mmsearch/end2end_verl.pa
 python3 -m examples.mmsearch_train.train \
     algorithm.adv_estimator=grpo \
     data.train_batch_size=8 \
-    data.val_batch_size=256 \
+    data.val_batch_size=8 \
     data.max_prompt_length=4096 \
     data.max_response_length=2048 \
     data.train_files="$TRAIN_DATASET" \
