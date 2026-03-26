@@ -9,7 +9,7 @@ from rllm.engine.rollout import ModelOutput, RolloutEngine
 SYSTEM_PROMPT = """
 You can use tools when needed.
 If you need to call the tool, you MUST use exactly this format:
-<tool_call>{"name":"tool_name","args":{...}}</tool_call>
+<tool_call>{"name":"tool_name","arguments":{...}}</tool_call>
 
 Rules:
 1) Available tools:
@@ -51,11 +51,11 @@ class MMSearchAgent:
             raise ValueError("tool_call payload must be a JSON object.")
 
         name = call.get("name")
-        args = call.get("args")
+        args = call.get("arguments")
         if not isinstance(name, str) or not name:
             raise ValueError("tool_call 'name' must be a non-empty string.")
         if args is None:
-            raise ValueError("tool_call must contain 'args'.")
+            raise ValueError("tool_call must contain 'arguments'.")
         return name, args
 
     @staticmethod
