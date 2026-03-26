@@ -90,10 +90,7 @@ class MMSearchWorkflow(Workflow):
             is_correct=is_correct,
             trajectories=[trajectory],
             metrics={
-                "prediction": prediction,
-                "labels": labels,
                 "exact_match": bool(is_correct),
-                "tool_calls": result.get("tool_calls", []),
             },
         )
         return ep
