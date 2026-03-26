@@ -37,7 +37,7 @@ python3 -m examples.mmsearch_train.train \
     actor_rollout_ref.rollout.enforce_eager=False \
     actor_rollout_ref.rollout.temperature=0.6 \
     actor_rollout_ref.rollout.top_p=0.95 \
-    actor_rollout_ref.rollout.gpu_memory_utilization=0.8 \
+    actor_rollout_ref.rollout.gpu_memory_utilization=0.65  \
     actor_rollout_ref.rollout.n=1 \
     actor_rollout_ref.rollout.val_kwargs.n=2 \
     actor_rollout_ref.rollout.val_kwargs.temperature=0.6 \
