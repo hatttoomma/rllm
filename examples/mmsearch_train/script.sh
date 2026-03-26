@@ -1,10 +1,11 @@
 MODEL_PATH=Qwen/Qwen3-VL-8B-Instruct
 TRAIN_DATASET=/home/qyw/rllm/examples/mmsearch_train/data/mmsearch/end2end_verl.parquet
 VAL_DATASET=/home/qyw/rllm/examples/mmsearch_train/data/mmsearch/end2end_verl.parquet
+NUM_GPUS=${NUM_GPUS:-4}
 
 python3 -m examples.mmsearch_train.train \
     algorithm.adv_estimator=grpo \
-    data.train_batch_size=4 \
+    data.train_batch_size=$(NUM_GPUS) \
     data.val_batch_size=8 \
     data.max_prompt_length=4096 \
     data.max_response_length=2048 \
@@ -16,7 +17,7 @@ python3 -m examples.mmsearch_train.train \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
     actor_rollout_ref.actor.loss_agg_mode=seq-mean-token-mean \
-    actor_rollout_ref.actor.ppo_mini_batch_size=4 \
+    actor_rollout_ref.actor.ppo_mini_batch_size=$(NUM_GPUS) \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=1 \
     actor_rollout_ref.actor.ppo_epochs=1 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
@@ -52,7 +53,7 @@ python3 -m examples.mmsearch_train.train \
     trainer.project_name='rllm-mmsearch' \
     trainer.experiment_name='mmsearch-8b-grpo' \
     trainer.val_before_train=True \
-    trainer.n_gpus_per_node=4 \
+    trainer.n_gpus_per_node=$(NUM_GPUS) \
     trainer.nnodes=1 \
     trainer.save_freq=10 \
     trainer.test_freq=10 \
