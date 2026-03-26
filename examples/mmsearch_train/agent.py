@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 from PIL import Image
 
-from .tools import get_mmsearch_tools
+from .tools import get_tools
 from rllm.engine.rollout import ModelOutput, RolloutEngine
 SYSTEM_PROMPT = """
 You can use tools when needed.
@@ -32,7 +32,7 @@ class MMSearchAgent:
 
     def __init__(self, rollout_engine: RolloutEngine):
         self.rollout_engine = rollout_engine
-        self.tools = get_mmsearch_tools()
+        self.tools = get_tools()
 
     @staticmethod
     def _extract_tool_call(content: str) -> tuple[str, dict] | None:

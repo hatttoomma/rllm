@@ -69,7 +69,7 @@ class SerperSearchTool(Tool):
         return ToolOutput(name=self.name, output=output)
 
 
-def get_mmsearch_tools() -> dict[str, Tool]:
+def get_tools() -> dict[str, Tool]:
     """Return tools used by MMSearch agent."""
     return {
         "search": SerperSearchTool(),
@@ -79,4 +79,6 @@ def get_mmsearch_tools() -> dict[str, Tool]:
             description="Execute Python code to compute, transform data, or verify intermediate results.",
         ),
     }
+
+
 
