@@ -7,8 +7,8 @@ python3 -m examples.mmsearch_train.train \
     algorithm.adv_estimator=grpo \
     data.train_batch_size=${NUM_GPUS} \
     data.val_batch_size=8 \
-    data.max_prompt_length=4096 \
-    data.max_response_length=2048 \
+    data.max_prompt_length=2048 \
+    data.max_response_length=1024 \
     data.train_files="$TRAIN_DATASET" \
     data.val_files="$VAL_DATASET" \
     actor_rollout_ref.model.path=$MODEL_PATH \
