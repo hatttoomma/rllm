@@ -1,4 +1,4 @@
-MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3-VL-2B-Thinking}
+MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3-VL-2B-Instruct}
 TRAIN_DATASET=/home/qyw/rllm/examples/mmsearch_train/data/mmsearch/end2end_verl.parquet
 VAL_DATASET=/home/qyw/rllm/examples/mmsearch_train/data/mmsearch/end2end_verl.parquet
 NUM_GPUS=${NUM_GPUS:-4}
