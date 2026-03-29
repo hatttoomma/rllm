@@ -72,12 +72,12 @@ class SerperSearchTool(Tool):
 def get_tools() -> dict[str, Tool]:
     """Return tools used by MMSearch agent."""
     return {
-        "search": SerperSearchTool(),
-        "code_interpreter": PythonInterpreter(
-            backend="local",
-            name="code_interpreter",
-            description="Execute Python code to compute, transform data, or verify intermediate results.",
-        ),
+        "search": SerperSearchTool()
+        # "code_interpreter": PythonInterpreter(
+        #     backend="local",
+        #     name="code_interpreter",
+        #     description="Execute Python code to compute, transform data, or verify intermediate results.",
+        # ),
     }
 
 

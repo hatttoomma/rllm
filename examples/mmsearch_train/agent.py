@@ -127,9 +127,9 @@ class MMSearchAgent:
         if max_tool_call < 0:
             raise ValueError("max_tool_call must be >= 0.")
 
-        prompt_text = query + "\n" + SYSTEM_PROMPT.strip()
+        prompt_text = query
         query_images = self._normalize_query_images(images)
-        messages = [{"role": "user", "content": prompt_text, "images": query_images if query_images else None}]
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt_text, "images": query_images if query_images else None}]
 
         curr_messages = messages
         output: ModelOutput = await self.rollout_engine.get_model_response(
