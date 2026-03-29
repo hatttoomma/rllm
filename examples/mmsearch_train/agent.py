@@ -6,6 +6,8 @@ from PIL import Image
 
 from .tools import get_tools
 from rllm.engine.rollout import ModelOutput, RolloutEngine
+
+# - code_interpreter: args must include "code" string, optional "timeout" integer
 SYSTEM_PROMPT = """
 You can use tools when needed.
 If you need to call the tool, you MUST use exactly this format:
@@ -14,7 +16,6 @@ If you need to call the tool, you MUST use exactly this format:
 Rules:
 1) Available tools:
    - search: args must include "query" string
-   - code_interpreter: args must include "code" string, optional "timeout" integer
 2) Use tools only when necessary. You may call tools for multiple rounds if needed.
 3) Put your final answer in the format of \boxed{answer}.
 """
