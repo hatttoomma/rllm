@@ -127,8 +127,7 @@ class MMSearchWorkflow(Workflow):
             is_correct=is_correct,
             trajectories=[trajectory],
             metrics={
-                "reward_type": self.reward_type,
-                **(reward_result.metadata or {}),
+                "exact_match": is_correct, #FIXME
             },
         )
 
@@ -141,5 +140,6 @@ class MMSearchWorkflow(Workflow):
             reward_result.reward,
             is_correct,
         )
+        print(f"trajectory reward_type={self.reward_type} prediction={prediction} labels={labels} is_correct={is_correct}")
         return ep
 

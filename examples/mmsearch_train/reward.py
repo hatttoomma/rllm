@@ -5,7 +5,6 @@ from collections.abc import Awaitable, Callable, Sequence
 
 from openai import AsyncOpenAI
 
-from examples.mmsearch_eval.judge_mmsearch import JUDGE_OUTPUT_SCHEMA, JUDGE_SYSTEM_PROMPT, build_prompt
 from rllm.agents.agent import Action
 from rllm.engine.rollout.rollout_engine import ModelOutput
 from rllm.rewards.reward_fn import RewardFunction
@@ -16,6 +15,43 @@ logger = logging.getLogger(__name__)
 
 RewardResult = RewardOutput | Awaitable[RewardOutput]
 MMSearchRewardFunction = Callable[[dict, str | Action | ModelOutput], RewardResult]
+
+JUDGE_SYSTEM_PROMPT = (
+    "You are a strict evaluator for question-answering. "
+    "Given a question, a model prediction, and one or more reference answers, "
+    "decide whether the prediction is semantically correct. "
+    "Be robust to minor formatting differences, capitalization, and punctuation, "
+    "but do not accept incorrect entities, numbers, or factual mismatches. "
+    "If prediction is empty, whitespace-only, or missing, it must be judged as incorrect."
+)
+
+JUDGE_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "is_correct": {"type": "boolean"},
+        "score": {"type": "number"},
+        "reason": {"type": "string"},
+    },
+    "required": ["is_correct", "score", "reason"],
+    "additionalProperties": False,
+}
+
+def build_prompt(item: dict[str, Any]) -> str:
+    query = item.get("query", "")
+    prediction = item.get("prediction", "")
+    labels = item.get("labels", [])
+    labels_text = "\n".join(f"- {x}" for x in labels) if labels else "- (no labels provided)"
+    return (
+        "Please evaluate whether the prediction correctly answers the question.\n\n"
+        f"Question:\n{query}\n\n"
+        f"Prediction:\n{prediction}\n\n"
+        f"Reference answers:\n{labels_text}\n\n"
+        "Important rule: if Prediction is empty or whitespace-only, set is_correct=false and score=0.\n\n"
+        "Return JSON with fields:\n"
+        "- is_correct: boolean\n"
+        "- score: float in [0,1]\n"
+        "- reason: short explanation"
+    )
 
 
 def _normalize(s: str) -> str:
