@@ -10,10 +10,11 @@ from .tools import get_tools
 def main(config):
 
     tools = get_tools()
+    workflow_args = dict(config.workflow_args)
 
     trainer = AgentTrainer(
         workflow_class=MMSearchWorkflow,
-        workflow_args={"tools": tools},
+        workflow_args={**workflow_args, "tools": tools},
         config=config,
     )
     trainer.train()

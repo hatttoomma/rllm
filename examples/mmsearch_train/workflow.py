@@ -71,8 +71,7 @@ class MMSearchWorkflow(Workflow):
         super().__init__(rollout_engine, executor, **kwargs)
         self.agent = MMSearchAgent(rollout_engine)
         self.reward_type = reward_type
-        print(reward_type)
-        raise ValueError("test")
+        logger.info("MMSearchWorkflow initialized with reward_type=%s", reward_type)
 
         if reward_type == "llm_judge":
             # Only allow env-based config to keep workflow args minimal.
