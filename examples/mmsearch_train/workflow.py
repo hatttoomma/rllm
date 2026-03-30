@@ -64,9 +64,6 @@ class MMSearchWorkflow(Workflow):
         rollout_engine,
         executor=None,
         reward_type: str = "exact_match",
-        judge_base_url: str | None = None,
-        judge_model: str | None = None,
-        judge_api_key: str | None = None,
         judge_temperature: float = 0.0,
         judge_max_tokens: int = 256,
         **kwargs,
@@ -75,15 +72,19 @@ class MMSearchWorkflow(Workflow):
         self.agent = MMSearchAgent(rollout_engine)
         self.reward_type = reward_type
 
-        # Allow config via workflow_args OR environment variables for convenience.
-        judge_base_url = judge_base_url or os.getenv("MMS_JUDGE_BASE_URL", "")
-        judge_model = judge_model or os.getenv("MMS_JUDGE_MODEL", "")
-        judge_api_key = judge_api_key or os.getenv("MMS_JUDGE_API_KEY") or os.getenv("OPENAI_API_KEY")
-
         if reward_type == "llm_judge":
+            # Only allow env-based config to keep workflow args minimal.
+            judge_base_url = os.getenv("MMS_JUDGE_BASE_URL", "")
+            judge_model = os.getenv("MMS_JUDGE_MODEL", "")
+            judge_api_key = os.getenv("MMS_JUDGE_API_KEY") or os.getenv("OPENAI_API_KEY")
+            if not judge_base_url or not judge_model:
+                raise ValueError(
+                    "reward_type=llm_judge requires environment variables: "
+                    "MMS_JUDGE_BASE_URL and MMS_JUDGE_MODEL (and MMS_JUDGE_API_KEY or OPENAI_API_KEY)."
+                )
             self.reward_fn = make_llm_judge_reward_fn(
-                base_url=judge_base_url or "",
-                model=judge_model or "",
+                base_url=judge_base_url,
+                model=judge_model,
                 api_key=judge_api_key,
                 temperature=float(judge_temperature),
                 max_tokens=int(judge_max_tokens),

@@ -167,17 +167,17 @@ async def _judge_one(
 
 
 def make_llm_judge_reward_fn(
-    base_url: str = "",
-    model: str = "",
+    base_url: str,
+    model: str,
     api_key: str | None = None,
     temperature: float = 0.0,
     max_tokens: int = 256,
 ) -> RewardFunction:
     if not base_url or not model:
-        logger.warning(
-            "MMSearch reward_type=llm_judge requested without judge_base_url or judge_model; falling back to exact_match."
+        raise ValueError(
+            "reward_type=llm_judge requires non-empty judge config: "
+            "set MMS_JUDGE_BASE_URL and MMS_JUDGE_MODEL environment variables."
         )
-        return exact_match_reward_fn
 
     client = AsyncOpenAI(
         base_url=base_url,
