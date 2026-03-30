@@ -30,10 +30,27 @@ from datasets import load_dataset
 from PIL import Image
 from tqdm import tqdm
 
+_MAX_IMAGE_SIDE = 1024
+
+
+def _resize_if_needed(image: Image.Image, max_side: int = _MAX_IMAGE_SIDE) -> Image.Image:
+    w, h = image.size
+    if w <= max_side and h <= max_side:
+        return image
+
+    scale = max_side / max(w, h)
+    new_w = max(1, int(round(w * scale)))
+    new_h = max(1, int(round(h * scale)))
+
+    resample = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.LANCZOS)
+    return image.resize((new_w, new_h), resample=resample)
+
+
 def pil_to_base64(image: Image.Image | None) -> str | None:
     """Convert PIL Image to base64 encoded string."""
     if image is None:
         return None
+    image = _resize_if_needed(image, _MAX_IMAGE_SIDE)
     image = image.convert("RGB")
     buf = BytesIO()
     image.save(buf, format="PNG")
