@@ -3,11 +3,14 @@ from PIL import Image
 from .agent import MMSearchAgent
 import base64
 import binascii
+import logging
 
 from rllm.agents.agent import Action, Episode, Step, Trajectory
 from rllm.workflows.workflow import TerminationReason, Workflow
 from io import BytesIO
 
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize(s: str) -> str:
@@ -93,5 +96,7 @@ class MMSearchWorkflow(Workflow):
                 "exact_match": bool(is_correct),
             },
         )
+
+        logger.info("trajectory prediction=%r labels=%r exact_match=%s", prediction, labels, is_correct)
         return ep
 
