@@ -98,5 +98,6 @@ class MMSearchWorkflow(Workflow):
         )
 
         logger.info("trajectory prediction=%r labels=%r exact_match=%s", prediction, labels, is_correct)
+        print(f"trajectory prediction={prediction} labels={labels} exact_match={is_correct}")
         return ep
 
