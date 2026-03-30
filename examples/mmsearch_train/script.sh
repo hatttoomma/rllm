@@ -3,6 +3,12 @@ TRAIN_DATASET=/home/qyw/rllm/examples/mmsearch_train/data/mmsearch/end2end_verl.
 VAL_DATASET=/home/qyw/rllm/examples/mmsearch_train/data/mmsearch/end2end_verl.parquet
 NUM_GPUS=${NUM_GPUS:-4}
 
+JUDGE_ENV_FILE=${JUDGE_ENV_FILE:-examples/mmsearch_train/config/judge.env}
+if [ -f "$JUDGE_ENV_FILE" ]; then
+    # shellcheck disable=SC1090
+    source "$JUDGE_ENV_FILE"
+fi
+
 python3 -m examples.mmsearch_train.train \
     algorithm.adv_estimator=grpo \
     data.train_batch_size=${NUM_GPUS} \
@@ -11,6 +17,7 @@ python3 -m examples.mmsearch_train.train \
     data.max_response_length=2048 \
     data.train_files="$TRAIN_DATASET" \
     data.val_files="$VAL_DATASET" \
+    workflow_args.reward_type=llm_judge \
     actor_rollout_ref.model.path=$MODEL_PATH \
     actor_rollout_ref.hybrid_engine=True \
     actor_rollout_ref.actor.optim.lr=1e-6 \

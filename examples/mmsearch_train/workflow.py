@@ -9,6 +9,10 @@ from rllm.agents.agent import Action, Episode, Step, Trajectory
 from rllm.workflows.workflow import TerminationReason, Workflow
 from io import BytesIO
 
+from .reward import exact_match_reward_fn, make_llm_judge_reward_fn
+import inspect
+import os
+
 
 logger = logging.getLogger(__name__)
 
@@ -55,9 +59,37 @@ class MMSearchWorkflow(Workflow):
     - convert to Episode with a single-step trajectory
     """
 
-    def __init__(self, rollout_engine, executor=None, **kwargs):
+    def __init__(
+        self,
+        rollout_engine,
+        executor=None,
+        reward_type: str = "exact_match",
+        judge_base_url: str | None = None,
+        judge_model: str | None = None,
+        judge_api_key: str | None = None,
+        judge_temperature: float = 0.0,
+        judge_max_tokens: int = 256,
+        **kwargs,
+    ):
         super().__init__(rollout_engine, executor, **kwargs)
         self.agent = MMSearchAgent(rollout_engine)
+        self.reward_type = reward_type
+
+        # Allow config via workflow_args OR environment variables for convenience.
+        judge_base_url = judge_base_url or os.getenv("MMS_JUDGE_BASE_URL", "")
+        judge_model = judge_model or os.getenv("MMS_JUDGE_MODEL", "")
+        judge_api_key = judge_api_key or os.getenv("MMS_JUDGE_API_KEY") or os.getenv("OPENAI_API_KEY")
+
+        if reward_type == "llm_judge":
+            self.reward_fn = make_llm_judge_reward_fn(
+                base_url=judge_base_url or "",
+                model=judge_model or "",
+                api_key=judge_api_key,
+                temperature=float(judge_temperature),
+                max_tokens=int(judge_max_tokens),
+            )
+        else:
+            self.reward_fn = exact_match_reward_fn
 
     async def run(self, task: dict, uid: str, **kwargs) -> Episode:
         self.reset(task=task, uid=uid)
@@ -70,8 +102,10 @@ class MMSearchWorkflow(Workflow):
         result = await self.agent.run(query=query, images=images, uid=uid, **kwargs)
         prediction = result["prediction"]
 
-        labels = task["answer"] # Answer is a list here
-        is_correct = _string_match(prediction, labels)
+        reward_result = self.reward_fn(task, Action(prediction))
+        if inspect.isawaitable(reward_result):
+            reward_result = await reward_result
+        is_correct = bool(reward_result.is_correct)
 
         trajectory = Trajectory(name="mmsearch_agent", task=query)
         trajectory.steps.append(
@@ -81,7 +115,7 @@ class MMSearchWorkflow(Workflow):
                 action=Action(prediction),
                 model_response=prediction,
                 model_output=result["output"],
-                reward=1.0 if is_correct else 0.0,
+                reward=float(reward_result.reward),
                 done=True,
             )
         )
@@ -93,11 +127,19 @@ class MMSearchWorkflow(Workflow):
             is_correct=is_correct,
             trajectories=[trajectory],
             metrics={
-                "exact_match": bool(is_correct),
+                "reward_type": self.reward_type,
+                **(reward_result.metadata or {}),
             },
         )
 
-        logger.info("trajectory prediction=%r labels=%r exact_match=%s", prediction, labels, is_correct)
-        print(f"trajectory prediction={prediction} labels={labels} exact_match={is_correct}")
+        labels = task.get("answer", None)
+        logger.info(
+            "trajectory reward_type=%s prediction=%r labels=%r reward=%s is_correct=%s",
+            self.reward_type,
+            prediction,
+            labels,
+            reward_result.reward,
+            is_correct,
+        )
         return ep
 
