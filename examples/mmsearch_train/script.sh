@@ -60,4 +60,5 @@ python3 -m examples.mmsearch_train.train \
     trainer.default_hdfs_dir=null \
     rllm.agent.max_steps=1 \
     rllm.stepwise_advantage.enable=False \
-    trainer.total_epochs=100 
+    trainer.total_epochs=100 \
+    hydra.job_logging.root.level=INFO
