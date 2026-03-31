@@ -62,6 +62,7 @@ python3 -m examples.mmsearch_train.train \
     trainer.val_before_train=False \
     trainer.n_gpus_per_node=${NUM_GPUS} \
     trainer.nnodes=1 \
+    trainer.balance_batch=False \
     trainer.save_freq=100 \
     trainer.test_freq=10 \
     trainer.default_hdfs_dir=null \
