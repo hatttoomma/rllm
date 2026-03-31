@@ -11,7 +11,7 @@ fi
 
 python3 -m examples.mmsearch_train.train \
     algorithm.adv_estimator=grpo \
-    data.train_batch_size=${NUM_GPUS} \
+    data.train_batch_size=16 \
     data.val_batch_size=8 \
     data.max_prompt_length=4096 \
     data.max_response_length=2048 \
@@ -24,7 +24,7 @@ python3 -m examples.mmsearch_train.train \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
     actor_rollout_ref.actor.loss_agg_mode=seq-mean-token-mean \
-    actor_rollout_ref.actor.ppo_mini_batch_size=${NUM_GPUS} \
+    actor_rollout_ref.actor.ppo_mini_batch_size=16 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=1 \
     actor_rollout_ref.actor.ppo_epochs=1 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
@@ -46,7 +46,7 @@ python3 -m examples.mmsearch_train.train \
     actor_rollout_ref.rollout.temperature=0.6 \
     actor_rollout_ref.rollout.top_p=0.95 \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6  \
-    actor_rollout_ref.rollout.n=4 \
+    actor_rollout_ref.rollout.n=2 \
     actor_rollout_ref.rollout.val_kwargs.n=1 \
     actor_rollout_ref.rollout.val_kwargs.temperature=0.6 \
     actor_rollout_ref.rollout.val_kwargs.top_p=0.95 \

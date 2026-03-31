@@ -109,9 +109,9 @@ class MMSearchAgent:
     @staticmethod
     def _extract_prediction(content: str) -> str:
         """
-        Extract answer strictly from \\boxed{...} as required by SYSTEM_PROMPT.
+        Extract answer strictly from boxed{...} as required by SYSTEM_PROMPT.
         """
-        matches = re.findall(r"\\boxed\{((?:[^{}]|\{[^{}]*\})*)\}", content, flags=re.DOTALL)
+        matches = re.findall(r"boxed\{((?:[^{}]|\{[^{}]*\})*)\}", content, flags=re.DOTALL)
         if not matches:
             return ""
         answer = matches[-1].strip()
