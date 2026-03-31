@@ -216,7 +216,8 @@ def main():
     )
     parser.add_argument(
         "--max_samples",
-        default=None,
+        default=10000,
+        type=int,
     )
 
     args = parser.parse_args()
