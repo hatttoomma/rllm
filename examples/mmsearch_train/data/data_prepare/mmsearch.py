@@ -108,6 +108,7 @@ def download_mmsearch_dataset(
     local_dir: str = "./mmsearch_train/data/mmsearch",
     subset: str = "end2end",
     split: str = "end2end",
+    max_samples: int | None = None,
 ) -> str:
     """Download and process MMSearch dataset.
 
@@ -139,6 +140,8 @@ def download_mmsearch_dataset(
     processed_data = []
 
     for idx, example in enumerate(tqdm(dataset, desc="Processing")):
+        if max_samples is not None and idx >= max_samples:
+            break
         processed = process_example(example, idx)
         if processed is not None:
             processed_data.append(processed)
@@ -211,6 +214,10 @@ def main():
         default="end2end",
         help="Dataset split name (default: end2end)",
     )
+    parser.add_argument(
+        "--max_samples",
+        default=None,
+    )
 
     args = parser.parse_args()
 
@@ -221,6 +228,7 @@ def main():
         local_dir=local_dir,
         subset=args.subset,
         split=args.split,
+        max_samples=args.max_samples,
     )
 
 
