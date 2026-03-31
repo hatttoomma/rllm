@@ -46,7 +46,7 @@ python3 -m examples.mmsearch_train.train \
     actor_rollout_ref.rollout.temperature=0.6 \
     actor_rollout_ref.rollout.top_p=0.95 \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6  \
-    actor_rollout_ref.rollout.n=1 \
+    actor_rollout_ref.rollout.n=4 \
     actor_rollout_ref.rollout.val_kwargs.n=1 \
     actor_rollout_ref.rollout.val_kwargs.temperature=0.6 \
     actor_rollout_ref.rollout.val_kwargs.top_p=0.95 \
@@ -59,10 +59,10 @@ python3 -m examples.mmsearch_train.train \
     trainer.logger=['console','wandb'] \
     trainer.project_name='rllm-mmsearch' \
     trainer.experiment_name='mmsearch-8b-grpo' \
-    trainer.val_before_train=False \
+    trainer.val_before_train=True \
     trainer.n_gpus_per_node=${NUM_GPUS} \
     trainer.nnodes=1 \
-    trainer.balance_batch=False \
+    trainer.balance_batch=True \
     trainer.save_freq=100 \
     trainer.test_freq=10 \
     trainer.default_hdfs_dir=null \
