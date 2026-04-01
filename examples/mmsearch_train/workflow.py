@@ -67,6 +67,8 @@ class MMSearchWorkflow(Workflow):
         reward_type: str = "exact_match",
         judge_temperature: float = 0.0,
         judge_max_tokens: int = 256,
+        use_local_qwen: bool = False,
+        qwen_model_path: str = "Qwen/Qwen3-4B-Instruct-2507-FP8",
         **kwargs,
     ):
         super().__init__(rollout_engine, executor, **kwargs)
@@ -80,6 +82,8 @@ class MMSearchWorkflow(Workflow):
                 self.reward_fn = make_llm_judge_reward_fn(
                     temperature=judge_temperature,
                     max_tokens=judge_max_tokens,
+                    use_local_qwen=use_local_qwen,
+                    qwen_model_path=qwen_model_path,
                 )
             except ValueError as e:
                 logger.error(e)

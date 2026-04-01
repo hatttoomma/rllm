@@ -6,6 +6,8 @@ from typing import Any
 
 
 from openai import AsyncOpenAI
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from rllm.agents.agent import Action
 from rllm.engine.rollout.rollout_engine import ModelOutput
@@ -168,30 +170,118 @@ async def _judge_one(
 def make_llm_judge_reward_fn(
     temperature: float = 0.0,
     max_tokens: int = 256,
+    use_local_qwen: bool = False,
+    qwen_model_path: str = "Qwen/Qwen3-4B-Instruct-2507-FP8",
 ) -> RewardFunction:
-    base_url = os.getenv("MMS_JUDGE_BASE_URL", "")
-    model = os.getenv("MMS_JUDGE_MODEL", "")
-    api_key = os.getenv("MMS_JUDGE_API_KEY", "")
-    if not base_url or not model or not api_key:
-        raise ValueError(
-            "reward_type=llm_judge requires non-empty judge config: "
-            "set MMS_JUDGE_BASE_URL and MMS_JUDGE_MODEL environment variables."
+    if use_local_qwen:
+        # Load local Qwen model
+        logger.info(f"Loading local Qwen model from {qwen_model_path}")
+        tokenizer = AutoTokenizer.from_pretrained(qwen_model_path, trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(
+            qwen_model_path,
+            trust_remote_code=True,
+            torch_dtype=torch.float8_e4m3fn if "FP8" in qwen_model_path else torch.float16,
+            device_map="auto"
+        )
+        model.eval()
+
+        def qwen_judge_reward_fn(task_info: dict, action: str | Action | ModelOutput) -> RewardOutput:
+            prediction = _normalize_action(action)
+            return _judge_with_local_qwen(
+                model=model,
+                tokenizer=tokenizer,
+                task_info=task_info,
+                prediction=prediction,
+            )
+
+        return qwen_judge_reward_fn
+    else:
+        # Use OpenAI API
+        base_url = os.getenv("MMS_JUDGE_BASE_URL", "")
+        model = os.getenv("MMS_JUDGE_MODEL", "")
+        api_key = os.getenv("MMS_JUDGE_API_KEY", "")
+        if not base_url or not model or not api_key:
+            raise ValueError(
+                "reward_type=llm_judge requires non-empty judge config: "
+                "set MMS_JUDGE_BASE_URL and MMS_JUDGE_MODEL environment variables."
+            )
+
+        client = AsyncOpenAI(
+            base_url=base_url,
+            api_key=api_key,
         )
 
-    client = AsyncOpenAI(
-        base_url=base_url,
-        api_key=api_key,
+        async def llm_judge_reward_fn(task_info: dict, action: str | Action | ModelOutput) -> RewardOutput:
+            prediction = _normalize_action(action)
+            return await _judge_one(
+                client=client,
+                model=model,
+                task_info=task_info,
+                prediction=prediction,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+
+        return llm_judge_reward_fn
+
+
+def _judge_with_local_qwen(
+    model,
+    tokenizer,
+    task_info: dict,
+    prediction: str,
+) -> RewardOutput:
+    """Judge using local Qwen model with simple yes/no response"""
+    if not prediction.strip():
+        return RewardOutput(
+            reward=0.0,
+            is_correct=False,
+            metadata={"judge_reason": "prediction is empty or whitespace-only; skip judge inference."},
+        )
+
+    # Build simple prompt for local Qwen
+    query = task_info.get("query", "")
+    labels = _get_labels(task_info)
+    labels_text = "\n".join(f"- {x}" for x in labels) if labels else "- (no labels provided)"
+
+    prompt = (
+        f"Question: {query}\n\n"
+        f"Answer: {prediction}\n\n"
+        f"Reference answers: {labels_text}\n\n"
+        "Please judge whether the answer is correct. Only respond with 'yes' or 'no', no other explanation needed."
     )
 
-    async def llm_judge_reward_fn(task_info: dict, action: str | Action | ModelOutput) -> RewardOutput:
-        prediction = _normalize_action(action)
-        return await _judge_one(
-            client=client,
-            model=model,
-            task_info=task_info,
-            prediction=prediction,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+    # Prepare messages for Qwen
+    messages = [
+        {"role": "system", "content": "You are a strict evaluator for question-answering."},
+        {"role": "user", "content": prompt},
+    ]
 
-    return llm_judge_reward_fn
+    # Generate response
+    inputs = tokenizer.apply_chat_template(
+        messages,
+        tokenize=True,
+        add_generation_prompt=True,
+        return_tensors="pt"
+    )
+    inputs = inputs.to(model.device)
+
+    # Generate with minimal tokens
+    outputs = model.generate(
+        inputs,
+        max_new_tokens=10,
+        temperature=0.0,
+        do_sample=False,
+        pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
+    )
+
+    # Decode response
+    response = tokenizer.decode(outputs[0][inputs.shape[1]:], skip_special_tokens=True).strip()
+
+    # Simple check for "yes" or "no"
+    is_correct = "yes" in response.lower()
+    return RewardOutput(
+        reward=1.0 if is_correct else 0.0,
+        is_correct=is_correct,
+        metadata={"judge_reason": f"Local Qwen judge: {response}", "judge_model": "local_qwen"},
+    )
