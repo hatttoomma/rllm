@@ -129,7 +129,7 @@ class MMSearchWorkflow(Workflow):
             is_correct=is_correct,
             trajectories=[trajectory],
             metrics={
-                "exact_match": bool(is_correct), #FIXME
+                "accuracy": bool(is_correct),
             },
         )
 

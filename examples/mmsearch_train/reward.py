@@ -156,13 +156,12 @@ async def _judge_one(
         raise RuntimeError("Empty response from judge model.")
 
     judged = json.loads(content)
-    score = float(judged["score"])
     is_correct = bool(judged["is_correct"])
     reason = str(judged["reason"])
     return RewardOutput(
-        reward=score,
+        reward=float(is_correct), #Here we use 0/1 as the reward
         is_correct=is_correct,
-        metadata={"judge_score": score, "judge_reason": reason, "judge_model": model},
+        metadata={"judge_score": float(is_correct), "judge_reason": reason, "judge_model": model},
     )
 
 
