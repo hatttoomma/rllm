@@ -180,7 +180,7 @@ def make_llm_judge_reward_fn(
         model = AutoModelForCausalLM.from_pretrained(
             qwen_model_path,
             trust_remote_code=True,
-            torch_dtype=torch.float8_e4m3fn if "FP8" in qwen_model_path else torch.float16,
+            torch_dtype="auto",
             device_map="auto"
         )
         model.eval()
