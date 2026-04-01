@@ -10,6 +10,7 @@ from rllm.workflows.workflow import TerminationReason, Workflow
 from io import BytesIO
 
 from .reward.llm_judge import exact_match_reward_fn, make_llm_judge_reward_fn
+from .reward.ttrl import apply_majority_vote_reward
 import inspect
 import os
 
@@ -73,25 +74,38 @@ class MMSearchWorkflow(Workflow):
         self.reward_type = reward_type
         logger.info("MMSearchWorkflow initialized with reward_type=%s", reward_type)
 
-        if reward_type == "llm_judge":
-            # Only allow env-based config to keep workflow args minimal.
-            judge_base_url = os.getenv("MMS_JUDGE_BASE_URL", "")
-            judge_model = os.getenv("MMS_JUDGE_MODEL", "")
-            judge_api_key = os.getenv("MMS_JUDGE_API_KEY") or os.getenv("OPENAI_API_KEY")
-            if not judge_base_url or not judge_model:
-                raise ValueError(
-                    "reward_type=llm_judge requires environment variables: "
-                    "MMS_JUDGE_BASE_URL and MMS_JUDGE_MODEL (and MMS_JUDGE_API_KEY or OPENAI_API_KEY)."
+        # Set reward function based on reward_type
+        if reward_type == "llm_judge" or reward_type == "ttrl":
+            try:
+                self.reward_fn = make_llm_judge_reward_fn(
+                    temperature=judge_temperature,
+                    max_tokens=judge_max_tokens,
                 )
-            self.reward_fn = make_llm_judge_reward_fn(
-                base_url=judge_base_url,
-                model=judge_model,
-                api_key=judge_api_key,
-                temperature=float(judge_temperature),
-                max_tokens=int(judge_max_tokens),
-            )
+            except ValueError as e:
+                logger.error(e)
+                raise e
         else:
+            # exact_match, ttrl use exact_match_reward_fn
             self.reward_fn = exact_match_reward_fn
+
+    @classmethod
+    def postprocess_episode_batch(cls, episodes: list[Episode], *, task_ids=None, workflow_args=None):
+        reward_type = (workflow_args or {}).get("reward_type", "exact_match")
+        mode = (workflow_args or {}).get("mode", "train")
+
+        # Only apply majority vote reward for ttrl type during training
+        # For validation, always use groundtruth labels (no majority vote)
+        # For exact_match and llm_judge, reward is already computed against groundtruth
+        if reward_type not in {"ttrl"}:
+            return episodes
+
+        # During validation, use groundtruth labels instead of majority vote
+        if mode == "val":
+            logger.info("Validation mode: using groundtruth labels instead of majority vote")
+            return episodes
+
+        # During training with ttrl, apply majority vote to get labels
+        return apply_majority_vote_reward(episodes, overwrite_episode_correctness=True)
 
     async def run(self, task: dict, uid: str, **kwargs) -> Episode:
         self.reset(task=task, uid=uid)
@@ -122,6 +136,7 @@ class MMSearchWorkflow(Workflow):
                 done=True,
             )
         )
+        trajectory.reward = float(reward_result.reward)
 
         ep = Episode(
             id=uid,
@@ -145,4 +160,3 @@ class MMSearchWorkflow(Workflow):
         )
         print(f"trajectory reward_type={self.reward_type} prediction={prediction} labels={labels} is_correct={is_correct}")
         return ep
-

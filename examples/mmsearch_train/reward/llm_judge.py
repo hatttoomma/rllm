@@ -166,13 +166,13 @@ async def _judge_one(
 
 
 def make_llm_judge_reward_fn(
-    base_url: str,
-    model: str,
-    api_key: str | None = None,
     temperature: float = 0.0,
     max_tokens: int = 256,
 ) -> RewardFunction:
-    if not base_url or not model:
+    base_url = os.getenv("MMS_JUDGE_BASE_URL", "")
+    model = os.getenv("MMS_JUDGE_MODEL", "")
+    api_key = os.getenv("MMS_JUDGE_API_KEY", "")
+    if not base_url or not model or not api_key:
         raise ValueError(
             "reward_type=llm_judge requires non-empty judge config: "
             "set MMS_JUDGE_BASE_URL and MMS_JUDGE_MODEL environment variables."
@@ -180,7 +180,7 @@ def make_llm_judge_reward_fn(
 
     client = AsyncOpenAI(
         base_url=base_url,
-        api_key=api_key or os.getenv("OPENAI_API_KEY") or "EMPTY",
+        api_key=api_key,
     )
 
     async def llm_judge_reward_fn(task_info: dict, action: str | Action | ModelOutput) -> RewardOutput:

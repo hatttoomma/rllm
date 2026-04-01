@@ -208,6 +208,15 @@ class AgentWorkflowEngine:
         tasks = batch.non_tensor_batch["extra_info"].tolist()
         task_ids = batch.non_tensor_batch["task_ids"].tolist()
         results = await self.execute_tasks(tasks, task_ids, **kwargs)  # list of Episodes
+
+        batch_postprocessor = getattr(self.workflow_cls, "postprocess_episode_batch", None)
+        if callable(batch_postprocessor):
+            # Pass current mode to postprocess_episode_batch so it can decide whether to use majority vote
+            workflow_args_with_mode = {**self.workflow_args, "mode": self.current_mode}
+            processed_results = batch_postprocessor(results, task_ids=task_ids, workflow_args=workflow_args_with_mode)
+            if processed_results is not None:
+                results = processed_results
+
         self.rollout_engine.validate = False
 
         await self.rollout_engine.sleep()
