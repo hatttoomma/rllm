@@ -9,7 +9,7 @@ from rllm.agents.agent import Action, Episode, Step, Trajectory
 from rllm.workflows.workflow import TerminationReason, Workflow
 from io import BytesIO
 
-from .reward import exact_match_reward_fn, make_llm_judge_reward_fn
+from .reward.llm_judge import exact_match_reward_fn, make_llm_judge_reward_fn
 import inspect
 import os
 
