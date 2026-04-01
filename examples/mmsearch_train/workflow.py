@@ -77,7 +77,7 @@ class MMSearchWorkflow(Workflow):
         logger.info("MMSearchWorkflow initialized with reward_type=%s", reward_type)
 
         # Set reward function based on reward_type
-        if reward_type == "llm_judge":
+        if reward_type == "llm_judge" or reward_type="ttrl":
             try:
                 self.reward_fn = make_llm_judge_reward_fn(
                     temperature=judge_temperature,
