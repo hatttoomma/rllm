@@ -127,13 +127,8 @@ class MMSearchWorkflow(Workflow):
         trajectory = Trajectory(name="mmsearch_agent", task=query)
         trajectory.steps.append(
             Step(
-                chat_completions=result["messages"] + [{"role": "assistant", "content": prediction}],
-                thought=getattr(result["output"], "reasoning", "") or "",
-                action=Action(prediction),
                 model_response=prediction,
                 model_output=result["output"],
-                reward=float(reward_result.reward),
-                done=True,
             )
         )
         trajectory.reward = float(reward_result.reward)

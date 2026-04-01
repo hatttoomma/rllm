@@ -37,8 +37,8 @@ def _extract_prediction(episode: Episode) -> str:
             continue
 
         step = trajectory.steps[-1]
-        if step.model_response:
-            return str(step.model_response)
+        assert step.model_response is not None
+        return str(step.model_response)
 
         action = step.action
         if isinstance(action, Action):
@@ -50,7 +50,6 @@ def _extract_prediction(episode: Episode) -> str:
         if isinstance(model_output, ModelOutput):
             return str(model_output.content or model_output.text or "")
 
-    return ""
 
 
 def _select_majority_prediction(predictions: Sequence[str]) -> str:
@@ -69,11 +68,6 @@ def _assign_episode_reward(episode: Episode, reward: float) -> None:
     for trajectory in episode.trajectories:
         trajectory.reward = reward
         trajectory.info["majority_vote_reward"] = reward
-        for step in trajectory.steps:
-            step.reward = 0.0
-            step.info["majority_vote_reward"] = reward
-        if trajectory.steps:
-            trajectory.steps[-1].reward = reward
 
 
 def apply_majority_vote_reward(
