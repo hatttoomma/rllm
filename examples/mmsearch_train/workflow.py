@@ -116,7 +116,7 @@ class MMSearchWorkflow(Workflow):
         images = decode_base64(images)
 
         result = await self.agent.run(query=query, images=images, uid=uid, **kwargs)
-        print(f"result: {result['output']}")
+        print(f"result: {result['output'].text}")
         prediction = result["prediction"]
 
         reward_result = self.reward_fn(task, Action(prediction))

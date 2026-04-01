@@ -14,7 +14,7 @@ python3 -m examples.mmsearch_train.train \
     data.train_batch_size=16 \
     data.val_batch_size=8 \
     data.max_prompt_length=4096 \
-    data.max_response_length=4096 \
+    data.max_response_length=8192 \
     data.train_files="$TRAIN_DATASET" \
     data.val_files="$VAL_DATASET" \
     +workflow_args.reward_type=ttrl \
