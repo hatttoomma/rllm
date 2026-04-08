@@ -153,6 +153,9 @@ async def _judge_one(
             ],
         )
 
+    print(response)
+    raise ValueError()
+
     content = (response.choices[0].message.content or "").strip()
     if not content:
         raise RuntimeError("Empty response from judge model.")
