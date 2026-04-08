@@ -138,6 +138,8 @@ async def _judge_one(
     )
 
     content = (response.choices[0].message.content or "").strip()
+    print(f"response:{response}, content:{content}")
+    raise ValueError()
     is_correct = _parse_binary_judge(content)
     return RewardOutput(
         reward=float(is_correct), #Here we use 0/1 as the reward
