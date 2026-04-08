@@ -29,32 +29,20 @@ JUDGE_SYSTEM_PROMPT = (
     "If prediction is empty, whitespace-only, or missing, it must be judged as incorrect."
 )
 
-JUDGE_OUTPUT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "is_correct": {"type": "boolean"},
-        "score": {"type": "number"},
-        "reason": {"type": "string"},
-    },
-    "required": ["is_correct", "score", "reason"],
-    "additionalProperties": False,
-}
-
 def build_prompt(item: dict[str, Any]) -> str:
     query = item.get("query", "")
     prediction = item.get("prediction", "")
     labels = item.get("labels", [])
     labels_text = "\n".join(f"- {x}" for x in labels) if labels else "- (no labels provided)"
     return (
-        "Please evaluate whether the prediction correctly answers the question.\n\n"
+        "Please judge whether the prediction correctly answers the question.\n\n"
         f"Question:\n{query}\n\n"
         f"Prediction:\n{prediction}\n\n"
         f"Reference answers:\n{labels_text}\n\n"
-        "Important rule: if Prediction is empty or whitespace-only, set is_correct=false and score=0.\n\n"
-        "Return JSON with fields:\n"
-        "- is_correct: boolean\n"
-        "- score: float in [0,1]\n"
-        "- reason: short explanation"
+        "Output rule:\n"
+        "- Respond with ONLY ONE word: 'correct' or 'incorrect'.\n"
+        "- No JSON, no punctuation, no extra words.\n"
+        "- If Prediction is empty or whitespace-only, respond 'incorrect'."
     )
 
 
@@ -86,6 +74,23 @@ def _get_labels(task_info: dict) -> list[str]:
     if isinstance(labels, Sequence):
         return [str(label) for label in labels if label is not None]
     return [str(labels)]
+
+def _parse_binary_judge(content: str) -> bool:
+    s = _normalize(content)
+    if not s:
+        raise RuntimeError("Empty response from judge model.")
+    # tolerate a few common variants
+    if s in {"correct", "yes", "true", "1", "right"}:
+        return True
+    if s in {"incorrect", "no", "false", "0", "wrong"}:
+        return False
+    # tolerate leading token cases like "correct." or "correct\n..."
+    first = s.split()[0]
+    if first in {"correct", "yes", "true", "1", "right"}:
+        return True
+    if first in {"incorrect", "no", "false", "0", "wrong"}:
+        return False
+    raise RuntimeError(f"Unrecognized judge output: {content!r}")
 
 
 def exact_match_reward_fn(task_info: dict, action: str | Action | ModelOutput) -> RewardOutput:
@@ -125,48 +130,23 @@ async def _judge_one(
         {"role": "user", "content": user_prompt},
     ]
 
-    try:
-        response = await client.chat.completions.create(
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {"name": "judge_output", "schema": JUDGE_OUTPUT_SCHEMA, "strict": True},
-            },
-            messages=messages,
-        )
-    except Exception:
-        response = await client.chat.completions.create(
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            messages=messages
-            + [
-                {
-                    "role": "user",
-                    "content": (
-                        "Return ONLY a valid JSON object with keys "
-                        '{"is_correct": boolean, "score": number, "reason": string}.'
-                    ),
-                }
-            ],
-        )
-
-    print(response)
-    raise ValueError()
+    response = await client.chat.completions.create(
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        messages=messages,
+    )
 
     content = (response.choices[0].message.content or "").strip()
-    if not content:
-        raise RuntimeError("Empty response from judge model.")
-
-    judged = json.loads(content)
-    is_correct = bool(judged["is_correct"])
-    reason = str(judged["reason"])
+    is_correct = _parse_binary_judge(content)
     return RewardOutput(
         reward=float(is_correct), #Here we use 0/1 as the reward
         is_correct=is_correct,
-        metadata={"judge_score": float(is_correct), "judge_reason": reason, "judge_model": model},
+        metadata={
+            "judge_score": float(is_correct),
+            "judge_reason": content,
+            "judge_model": model,
+        },
     )
 
 
