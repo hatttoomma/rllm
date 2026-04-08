@@ -9,7 +9,7 @@ from __future__ import annotations
 import wandb
 
 # Replace with your y values (length must be 10).
-YS: list[float] = [0.25, 0.32, 0.33, 0.28, 0.27]
+YS: list[float] = [0.25, 0.32, 0.33, 0.28, 0.27, 0, 0, 0, 0, 0]
 
 NUM_STEPS = 10
 assert len(YS) == NUM_STEPS, f"YS must have length {NUM_STEPS}"
