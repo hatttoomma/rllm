@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from typing import Any
 
 from openai import OpenAI
 
@@ -57,6 +58,23 @@ def _redact_key(key: str | None) -> str:
     return f"{key[:4]}...{key[-4:]}"
 
 
+def _raw_http_body(raw: Any) -> str | None:
+    if hasattr(raw, "http_response") and raw.http_response is not None:
+        return raw.http_response.text
+    if hasattr(raw, "text"):
+        text = raw.text
+        return text if isinstance(text, str) else None
+    return None
+
+
+def _parse_raw_response(raw: Any):
+    if hasattr(raw, "parse"):
+        return raw.parse()
+    if hasattr(raw, "data") and raw.data is not None:
+        return raw.data
+    return raw
+
+
 def main() -> int:
     base_url = os.getenv("MMS_JUDGE_BASE_URL", "").strip()
     model = os.getenv("MMS_JUDGE_MODEL", "").strip()
@@ -87,13 +105,25 @@ def main() -> int:
     print("\n=== request ===")
     print(json.dumps({"model": model, "temperature": temperature, "max_tokens": max_tokens, "messages": messages}, indent=2, ensure_ascii=False))
 
-    print("\n=== response (model_dump) ===")
-    response = client.chat.completions.create(
+    print("\n=== raw HTTP body (what the server actually returned) ===")
+    raw = client.with_raw_response.chat.completions.create(
         model=model,
         temperature=temperature,
         max_tokens=max_tokens,
         messages=messages,
     )
+    body = _raw_http_body(raw)
+    if body is None:
+        print("(could not read raw body from SDK response object)")
+    else:
+        try:
+            print(json.dumps(json.loads(body), indent=2, ensure_ascii=False))
+        except json.JSONDecodeError:
+            print(body)
+
+    response = _parse_raw_response(raw)
+
+    print("\n=== parsed ChatCompletion (model_dump) ===")
     try:
         dumped = response.model_dump(mode="json")
         print(json.dumps(dumped, indent=2, ensure_ascii=False, default=str))
@@ -101,29 +131,24 @@ def main() -> int:
         print(f"(model_dump failed: {exc})\n{response!r}")
 
     msg = response.choices[0].message
-    print("\n=== message fields (non-callable) ===")
-    for name in sorted(dir(msg)):
-        if name.startswith("_"):
-            continue
-        try:
-            val = getattr(msg, name)
-        except Exception as exc:
-            print(f"  {name}: <error {exc}>")
-            continue
-        if callable(val):
-            continue
-        print(f"  {name}: {val!r}")
+    print("\n=== message.model_dump() (avoid dir() / pydantic deprecation) ===")
+    try:
+        md = msg.model_dump(mode="python")
+        print(json.dumps(md, indent=2, ensure_ascii=False, default=str))
+    except Exception as exc:
+        print(f"(model_dump failed: {exc})")
 
-    raw = getattr(response.choices[0], "message", None)
-    content = (getattr(raw, "content", None) or "").strip()
+    content = (msg.content or "").strip()
     print("\n=== summary ===")
     print(f"  choices[0].finish_reason: {response.choices[0].finish_reason!r}")
     print(f"  message.content (strip): {content!r}")
     if not content:
         print(
-            "\n  NOTE: content is empty but usage shows completion_tokens > 0.\n"
-            "  Some gateways/models put text in other message fields (e.g. reasoning) or require\n"
-            "  a different API (Responses) or parameters — compare message fields above."
+            "\n  Interpretation: If raw JSON above has no assistant text under the usual keys\n"
+            "  (e.g. choices[0].message.content), the gateway is not returning text for this\n"
+            "  model/endpoint — fix the provider config or use their documented API (e.g. Responses).\n"
+            "  If raw JSON *does* contain text but model_dump shows content=null, the response\n"
+            "  shape is non-standard and the OpenAI SDK is dropping fields (open an issue with the provider)."
         )
 
     return 0
